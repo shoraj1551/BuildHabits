@@ -4,7 +4,7 @@ import { AddHabitModal } from './AddHabitModal';
 import { motion } from 'framer-motion';
 import { useHabitStore } from '../store/useHabitStore';
 
-export type Page = 'dashboard' | 'analytics' | 'settings';
+export type Page = 'dashboard' | 'analytics' | 'settings' | 'habit-detail';
 
 interface AppLayoutProps {
   children: React.ReactNode;

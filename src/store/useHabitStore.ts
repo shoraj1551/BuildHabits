@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toISOLocal } from '../utils/dateUtils';
+import { normalizeCategory } from '../utils/habitUtils';
 
 export interface Habit {
   id: string;
@@ -66,7 +67,7 @@ export const useHabitStore = create<HabitStore>()(
       setAddModalOpen: (isOpen) => set({ isAddModalOpen: isOpen }),
       
       addHabit: (habitData) => set((state) => {
-        const category = habitData.category.trim() || 'General';
+        const category = normalizeCategory(habitData.category);
         const categoryCount = state.habits.filter((habit) => !habit.isArchived && habit.category === category).length;
         if (categoryCount >= MAX_HABITS_PER_CATEGORY) {
           return state;
@@ -154,7 +155,7 @@ export const useHabitStore = create<HabitStore>()(
                 const createdAt = new Date(habit.createdAt);
                 return {
                   ...habit,
-                  category: typeof habit.category === 'string' && habit.category.trim() ? habit.category : 'General',
+                  category: normalizeCategory(habit.category),
                   createdAt: Number.isNaN(createdAt.getTime()) ? new Date() : createdAt,
                   completedDates: Array.isArray(habit.completedDates)
                     ? habit.completedDates.filter((date: unknown) => typeof date === 'string')
