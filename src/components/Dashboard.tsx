@@ -3,11 +3,14 @@ import { useHabitStore } from '../store/useHabitStore';
 import { format } from 'date-fns';
 import { toISOLocal, generateDateRange } from '../utils/dateUtils';
 import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../utils/analyticsUtils';
+import type { DayLogEvidence } from '../store/useHabitStore';
 
 export const Dashboard: React.FC = () => {
   const habits = useHabitStore((state) => state.habits);
   const userProfile = useHabitStore((state) => state.userProfile);
   const toggleHabitCompletion = useHabitStore((state) => state.toggleHabitCompletion);
+  const dayLogs = useHabitStore((state) => state.dayLogs);
+  const addDayLog = useHabitStore((state) => state.addDayLog);
 
   const activeHabits = habits.filter(h => !h.isArchived);
 
@@ -24,6 +27,9 @@ export const Dashboard: React.FC = () => {
   const consistencyScore = calculateConsistencyScore(activeHabits, 7, last7Days);
 
   const [activeMood, setActiveMood] = useState<string | null>(null);
+  const [dayActivity, setDayActivity] = useState('');
+  const [evidenceType, setEvidenceType] = useState<DayLogEvidence['kind']>('other');
+  const [pendingEvidence, setPendingEvidence] = useState<DayLogEvidence[]>([]);
 
   const moods = [
     { emoji: '😔', label: 'Sad' },
@@ -32,6 +38,39 @@ export const Dashboard: React.FC = () => {
     { emoji: '🤩', label: 'Great' },
     { emoji: '🔥', label: 'Elite' },
   ];
+
+  const handleSaveDayLog = () => {
+    addDayLog(dayActivity, todayIso, pendingEvidence);
+    setDayActivity('');
+    setPendingEvidence([]);
+  };
+
+  const handleEvidenceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+        if (!dataUrl) return;
+        setPendingEvidence((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            kind: evidenceType,
+            name: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            dataUrl,
+            addedAt: new Date()
+          }
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = '';
+  };
 
   return (
     <div className="px-lg md:px-xxl py-xl max-w-[1400px] mx-auto w-full pb-32">
@@ -167,6 +206,74 @@ export const Dashboard: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Daily Activity Log */}
+      <section className="mb-xxl bg-surface-container-lowest rounded-xxl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] border border-outline-variant/10 p-lg">
+        <div className="flex items-center justify-between mb-md">
+          <h3 className="font-headline-md text-on-surface">Log Your Day</h3>
+          <span className="text-xs text-on-surface-variant">{format(new Date(), 'MMMM d, yyyy')}</span>
+        </div>
+        <div className="space-y-sm">
+          <textarea
+            rows={3}
+            value={dayActivity}
+            onChange={(e) => setDayActivity(e.target.value)}
+            placeholder="What did you do today? Wins, blockers, routines..."
+            className="w-full rounded-xl border border-outline-variant/30 bg-surface px-md py-sm text-sm outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveDayLog}
+              disabled={!dayActivity.trim() && pendingEvidence.length === 0}
+              className="rounded-lg bg-primary text-on-primary px-lg py-sm font-semibold disabled:opacity-50"
+            >
+              Save Activity
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-sm items-end">
+            <label className="text-xs text-on-surface-variant md:col-span-1">
+              Evidence Type
+              <select
+                value={evidenceType}
+                onChange={(ev) => setEvidenceType(ev.target.value as DayLogEvidence['kind'])}
+                className="mt-1 w-full rounded-lg border border-outline-variant/30 px-sm py-xs bg-surface"
+              >
+                <option value="other">Other</option>
+                <option value="finance_bill">Finance Bill</option>
+                <option value="food_image">Food Image</option>
+              </select>
+            </label>
+            <label className="text-xs text-on-surface-variant md:col-span-2">
+              Upload Supporting Evidence
+              <input type="file" accept="image/*,.pdf" multiple onChange={handleEvidenceUpload} className="mt-1 block w-full text-xs" />
+            </label>
+          </div>
+          {pendingEvidence.length > 0 && (
+            <div className="rounded-lg border border-outline-variant/20 p-sm">
+              <p className="text-xs font-semibold mb-1">Pending Evidence ({pendingEvidence.length})</p>
+              <ul className="text-xs text-on-surface-variant space-y-1">
+                {pendingEvidence.map((item) => (
+                  <li key={item.id}>• {item.kind.replace('_', ' ')}: {item.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+        <div className="mt-lg space-y-sm">
+          {dayLogs.slice(0, 5).map((log) => (
+            <div key={log.id} className="rounded-lg border border-outline-variant/20 p-sm">
+              <p className="text-sm text-on-surface">{log.activity}</p>
+              <p className="text-[11px] text-on-surface-variant mt-1">{log.date}</p>
+              {(log.evidences?.length || 0) > 0 && (
+                <div className="mt-1 text-[11px] text-on-surface-variant">
+                  Evidence: {log.evidences?.map((evidence) => evidence.name).join(', ')}
+                </div>
+              )}
+            </div>
+          ))}
+          {dayLogs.length === 0 && <p className="text-sm text-on-surface-variant">No day logs yet. Add your first entry above.</p>}
         </div>
       </section>
 

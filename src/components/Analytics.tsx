@@ -1,26 +1,32 @@
 import React, { useState, useMemo } from 'react';
 import { useHabitStore } from '../store/useHabitStore';
 import { format } from 'date-fns';
-import { toISOLocal, generateDateRange } from '../utils/dateUtils';
+import { toISOLocal, generateCurrentMonthRange, generateCurrentWeekRange } from '../utils/dateUtils';
 import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../utils/analyticsUtils';
 
 export const Analytics: React.FC = () => {
   const habits = useHabitStore((state) => state.habits);
   const toggleHabitCompletion = useHabitStore((state) => state.toggleHabitCompletion);
 
-  const [range, setRange] = useState<7 | 30>(7);
+  const [period, setPeriod] = useState<'week' | 'month'>('week');
 
   const activeHabits = useMemo(() => habits.filter(h => !h.isArchived), [habits]);
 
-  // Generate days based on range (e.g. past 7 or 30 days)
-  const days = useMemo(() => generateDateRange(range), [range]);
+  // Generate days based on selected period
+  const days = useMemo(
+    () => (period === 'week' ? generateCurrentWeekRange() : generateCurrentMonthRange()),
+    [period]
+  );
 
   const completionsPerDay = useMemo(() => {
-    return getCompletionsPerDay(habits, days);
-  }, [habits, days]);
+    return getCompletionsPerDay(activeHabits, days);
+  }, [activeHabits, days]);
 
   const maxCompletions = Math.max(...completionsPerDay, 1);
-  const reliability = calculateConsistencyScore(activeHabits, range, days);
+  const reliability = calculateConsistencyScore(activeHabits, days.length, days);
+  const avgCompletionsPerHabit = activeHabits.length > 0
+    ? (completionsPerDay.reduce((sum, value) => sum + value, 0) / activeHabits.length).toFixed(1)
+    : '0.0';
 
   const renderMatrixRows = (habitList: typeof habits, isArchivedSection: boolean) => {
     if (habitList.length === 0) return null;
@@ -28,7 +34,7 @@ export const Analytics: React.FC = () => {
     return habitList.map((habit) => {
       // Calculate habit specific reliability
       const habitCompletions = getHabitCompletionCount(habit, days);
-      const habitReliability = range > 0 ? Math.round((habitCompletions / range) * 100) : 0;
+      const habitReliability = days.length > 0 ? Math.round((habitCompletions / days.length) * 100) : 0;
       
       let badgeLabel = 'Building';
       if (habitReliability > 80) badgeLabel = 'High Consistency';
@@ -36,7 +42,7 @@ export const Analytics: React.FC = () => {
       else badgeLabel = 'Steady';
 
       return (
-        <div key={habit.id} className="grid gap-2 items-center" style={{ gridTemplateColumns: `minmax(140px, 2fr) repeat(${range}, minmax(36px, 1fr)) minmax(120px, 3fr)` }}>
+        <div key={habit.id} className="grid gap-2 items-center" style={{ gridTemplateColumns: `minmax(140px, 2fr) repeat(${days.length}, minmax(36px, 1fr)) minmax(120px, 3fr)` }}>
           <div className={`font-label-md truncate pr-md ${isArchivedSection ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
             {habit.title}
           </div>
@@ -78,16 +84,16 @@ export const Analytics: React.FC = () => {
         </div>
         <div className="bg-surface-container-low p-base rounded-xl flex items-center border border-outline-variant/30 shadow-sm shrink-0">
           <button 
-            onClick={() => setRange(7)}
-            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${range === 7 ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            onClick={() => setPeriod('week')}
+            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${period === 'week' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
           >
-            7 Days
+            Current Week
           </button>
           <button 
-            onClick={() => setRange(30)}
-            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${range === 30 ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            onClick={() => setPeriod('month')}
+            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${period === 'month' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
           >
-            30 Days
+            Current Month
           </button>
         </div>
       </div>
@@ -100,7 +106,7 @@ export const Analytics: React.FC = () => {
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-headline-md text-on-surface">Total Output</h4>
-              <p className="font-label-sm text-on-surface-variant">Habit completion units per day</p>
+              <p className="font-label-sm text-on-surface-variant">Avg {avgCompletionsPerHabit} completions per active habit</p>
             </div>
             <div className="flex gap-sm">
               <span className="flex items-center gap-xs font-label-md text-green-600">
@@ -126,7 +132,7 @@ export const Analytics: React.FC = () => {
                     </div>
                   </div>
                   <span className={`text-[10px] sm:font-label-sm whitespace-nowrap ${isToday ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>
-                    {range === 7 ? format(day.date, 'E') : format(day.date, 'd')}
+                    {period === 'week' ? format(day.date, 'E') : format(day.date, 'd')}
                   </span>
                 </div>
               );
@@ -193,14 +199,14 @@ export const Analytics: React.FC = () => {
           </div>
           
           <div className="overflow-x-auto pb-md hide-scrollbar">
-            <div className={`min-w-[${range === 30 ? '1200px' : '600px'}]`}>
+            <div className={`min-w-[${period === 'month' ? '1200px' : '600px'}]`}>
               
               {/* Matrix Labels */}
-              <div className="grid gap-2 mb-sm text-center" style={{ gridTemplateColumns: `minmax(140px, 2fr) repeat(${range}, minmax(36px, 1fr)) minmax(120px, 3fr)` }}>
+              <div className="grid gap-2 mb-sm text-center" style={{ gridTemplateColumns: `minmax(140px, 2fr) repeat(${days.length}, minmax(36px, 1fr)) minmax(120px, 3fr)` }}>
                 <div></div>
                 {days.map((day, i) => (
                   <div key={i} className="font-label-sm text-on-surface-variant flex flex-col items-center">
-                    <span className="text-[10px]">{range === 7 ? format(day.date, 'EEE') : format(day.date, 'MMM')}</span>
+                    <span className="text-[10px]">{period === 'week' ? format(day.date, 'EEE') : format(day.date, 'MMM')}</span>
                     <span className={`text-xs ${format(day.date, 'yyyy-MM-dd') === toISOLocal(new Date()) ? 'text-primary font-bold' : ''}`}>{format(day.date, 'd')}</span>
                   </div>
                 ))}
