@@ -10,6 +10,7 @@ export interface Habit {
   isPremium: boolean;
   completedDates: string[]; // ISO date strings
   isArchived?: boolean; // Added for soft delete
+  category: string;
 }
 
 export interface UserProfile {
@@ -17,11 +18,27 @@ export interface UserProfile {
   email: string;
   avatarUrl: string;
 }
+export interface DayLogEntry {
+  id: string;
+  date: string;
+  createdAt: Date;
+  activity: string;
+  evidences?: DayLogEvidence[];
+}
+export interface DayLogEvidence {
+  id: string;
+  kind: 'finance_bill' | 'food_image' | 'other';
+  name: string;
+  mimeType: string;
+  dataUrl: string;
+  addedAt: Date;
+}
 
 interface HabitStore {
   habits: Habit[];
   userProfile: UserProfile;
   isAddModalOpen: boolean;
+  dayLogs: DayLogEntry[];
   setAddModalOpen: (isOpen: boolean) => void;
   addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'completedDates' | 'isArchived'>) => void;
   deleteHabit: (id: string) => void; // Hard delete
@@ -29,32 +46,46 @@ interface HabitStore {
   toggleHabitCompletion: (id: string, targetDate?: string) => void;
   clearAllData: () => void;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
+  addDayLog: (activity: string, targetDate?: string, evidences?: DayLogEvidence[]) => void;
 }
+
+const DEFAULT_USER_PROFILE: UserProfile = {
+  displayName: "Alex Rivera",
+  email: "alex.rivera@habitbuilder.io",
+  avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBgXeV2ntA8q2b0Y6ro68eoPLXIEgIdu4olVB1JkjvAW5UGz_eAGGyRsRx-dq2QaWwOo1Rufvt4uWCfjZDZC2HdhHjjGaYEqHnGUwGKKaX_LZuSx5ZVKUHvylMQDoXr8s8hxuVJAWaKtB-2uIVSCxcjSq_IWZlV1ium2ryEff6j4guDcOMtIVrK_oXQBXLDPX0BRBravBk_-yqtMB6hxgkkMW6h-KR8eRgk3zx6dmsNO8WAKPFnRUxExtp6Pbw6y8EsAEApnByGSeLV"
+};
+const MAX_HABITS_PER_CATEGORY = 10;
 
 export const useHabitStore = create<HabitStore>()(
   persist(
     (set) => ({
       habits: [],
-      userProfile: {
-        displayName: "Alex Rivera",
-        email: "alex.rivera@habitbuilder.io",
-        avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBgXeV2ntA8q2b0Y6ro68eoPLXIEgIdu4olVB1JkjvAW5UGz_eAGGyRsRx-dq2QaWwOo1Rufvt4uWCfjZDZC2HdhHjjGaYEqHnGUwGKKaX_LZuSx5ZVKUHvylMQDoXr8s8hxuVJAWaKtB-2uIVSCxcjSq_IWZlV1ium2ryEff6j4guDcOMtIVrK_oXQBXLDPX0BRBravBk_-yqtMB6hxgkkMW6h-KR8eRgk3zx6dmsNO8WAKPFnRUxExtp6Pbw6y8EsAEApnByGSeLV"
-      },
+      dayLogs: [],
+      userProfile: DEFAULT_USER_PROFILE,
       isAddModalOpen: false,
       setAddModalOpen: (isOpen) => set({ isAddModalOpen: isOpen }),
       
-      addHabit: (habitData) => set((state) => ({
-        habits: [
-          ...state.habits,
-          {
-            ...habitData,
-            id: crypto.randomUUID(),
-            createdAt: new Date(),
-            completedDates: [],
-            isArchived: false,
-          }
-        ]
-      })),
+      addHabit: (habitData) => set((state) => {
+        const category = habitData.category.trim() || 'General';
+        const categoryCount = state.habits.filter((habit) => !habit.isArchived && habit.category === category).length;
+        if (categoryCount >= MAX_HABITS_PER_CATEGORY) {
+          return state;
+        }
+
+        return {
+          habits: [
+            ...state.habits,
+            {
+              ...habitData,
+              category,
+              id: crypto.randomUUID(),
+              createdAt: new Date(),
+              completedDates: [],
+              isArchived: false,
+            }
+          ]
+        };
+      }),
 
       deleteHabit: (id) => set((state) => ({
         habits: state.habits.filter((h) => h.id !== id)
@@ -86,24 +117,86 @@ export const useHabitStore = create<HabitStore>()(
       updateUserProfile: (updates) => set((state) => ({
         userProfile: { ...state.userProfile, ...updates }
       })),
+      addDayLog: (activity, targetDate, evidences = []) => set((state) => {
+        const trimmed = activity.trim();
+        if (!trimmed && evidences.length === 0) return state;
+        return {
+          dayLogs: [
+            {
+              id: crypto.randomUUID(),
+              date: targetDate || toISOLocal(new Date()),
+              createdAt: new Date(),
+              activity: trimmed || 'Evidence-only log entry',
+              evidences
+            },
+            ...state.dayLogs
+          ]
+        };
+      }),
 
-      clearAllData: () => set({ habits: [] })
+      clearAllData: () => set({
+        habits: [],
+        dayLogs: [],
+        userProfile: DEFAULT_USER_PROFILE,
+        isAddModalOpen: false
+      })
     }),
     {
       name: 'habit-tracker-local-storage',
       // Custom deserialization to ensure createdAt is restored as a Date object
       merge: (persistedState: any, currentState) => {
         if (!persistedState) return currentState;
+
+        const safeHabits = Array.isArray(persistedState.habits)
+          ? persistedState.habits
+              .filter((habit: any) => habit && typeof habit.id === 'string' && typeof habit.title === 'string')
+              .map((habit: any) => {
+                const createdAt = new Date(habit.createdAt);
+                return {
+                  ...habit,
+                  category: typeof habit.category === 'string' && habit.category.trim() ? habit.category : 'General',
+                  createdAt: Number.isNaN(createdAt.getTime()) ? new Date() : createdAt,
+                  completedDates: Array.isArray(habit.completedDates)
+                    ? habit.completedDates.filter((date: unknown) => typeof date === 'string')
+                    : []
+                };
+              })
+          : [];
+        const safeDayLogs = Array.isArray(persistedState.dayLogs)
+          ? persistedState.dayLogs
+              .filter((log: any) => log && typeof log.activity === 'string')
+              .map((log: any) => {
+                const createdAt = new Date(log.createdAt);
+                return {
+                  id: typeof log.id === 'string' ? log.id : crypto.randomUUID(),
+                  date: typeof log.date === 'string' ? log.date : toISOLocal(new Date()),
+                  activity: log.activity.trim(),
+                  createdAt: Number.isNaN(createdAt.getTime()) ? new Date() : createdAt,
+                  evidences: Array.isArray(log.evidences)
+                    ? log.evidences
+                        .filter((e: any) => e && typeof e.name === 'string' && typeof e.dataUrl === 'string')
+                        .map((e: any) => {
+                          const addedAt = new Date(e.addedAt);
+                          return {
+                            id: typeof e.id === 'string' ? e.id : crypto.randomUUID(),
+                            kind: e.kind === 'finance_bill' || e.kind === 'food_image' ? e.kind : 'other',
+                            name: e.name,
+                            mimeType: typeof e.mimeType === 'string' ? e.mimeType : 'application/octet-stream',
+                            dataUrl: e.dataUrl,
+                            addedAt: Number.isNaN(addedAt.getTime()) ? new Date() : addedAt
+                          };
+                        })
+                    : []
+                };
+              })
+              .filter((log: any) => log.activity.length > 0)
+          : [];
         
         return {
           ...currentState,
           ...persistedState,
-          habits: persistedState.habits?.map((habit: any) => ({
-            ...habit,
-            createdAt: new Date(habit.createdAt),
-            // completedDates is already an array of strings, handled perfectly by JSON
-            completedDates: habit.completedDates || []
-          })) || []
+          habits: safeHabits,
+          dayLogs: safeDayLogs
         };
       }
     }

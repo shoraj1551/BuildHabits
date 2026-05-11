@@ -10,21 +10,27 @@ interface AddHabitModalProps {
 
 export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose }) => {
   const addHabit = useHabitStore((state) => state.addHabit);
+  const habits = useHabitStore((state) => state.habits);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('General');
+  const activeCategoryCount = habits.filter((habit) => !habit.isArchived && habit.category === category).length;
+  const isCategoryLimitReached = activeCategoryCount >= 10;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || isCategoryLimitReached) return;
     
     addHabit({
       title: title.trim(),
       description: description.trim(),
       isPremium: false,
+      category,
     });
     
     setTitle('');
     setDescription('');
+    setCategory('General');
     onClose();
   };
 
@@ -77,6 +83,23 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose })
                   </div>
 
                   <div>
+                    <label htmlFor="category" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      Category
+                    </label>
+                    <input
+                      id="category"
+                      type="text"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      placeholder="General"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                    />
+                    <p className={`mt-1 text-xs ${isCategoryLimitReached ? 'text-red-600' : 'text-slate-500'}`}>
+                      {activeCategoryCount}/10 active habits in this category
+                    </p>
+                  </div>
+
+                  <div>
                     <label htmlFor="description" className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Description <span className="font-normal text-slate-400">(Optional)</span>
                     </label>
@@ -101,6 +124,7 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose })
                   </button>
                   <button
                     type="submit"
+                    disabled={isCategoryLimitReached}
                     className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-600/20"
                   >
                     Save Habit

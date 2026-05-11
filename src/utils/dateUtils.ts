@@ -4,8 +4,10 @@ import { subDays } from 'date-fns';
  * Returns a local timezone-adjusted ISO date string (YYYY-MM-DD)
  */
 export const toISOLocal = (date: Date = new Date()): string => {
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export interface DayContext {
@@ -21,6 +23,30 @@ export interface DayContext {
 export const generateDateRange = (range: number): DayContext[] => {
   return Array.from({ length: range }).map((_, i) => {
     const d = subDays(new Date(), (range - 1) - i);
+    return { date: d, iso: toISOLocal(d) };
+  });
+};
+
+export const generateCurrentWeekRange = (): DayContext[] => {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 Sunday
+  const start = new Date(now);
+  start.setDate(now.getDate() - dayOfWeek);
+  return Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return { date: d, iso: toISOLocal(d) };
+  });
+};
+
+export const generateCurrentMonthRange = (): DayContext[] => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  return Array.from({ length: daysInMonth }).map((_, i) => {
+    const d = new Date(year, month, i + 1);
     return { date: d, iso: toISOLocal(d) };
   });
 };
