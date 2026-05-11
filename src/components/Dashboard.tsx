@@ -3,16 +3,24 @@ import { useHabitStore } from '../store/useHabitStore';
 import { format } from 'date-fns';
 import { toISOLocal, generateDateRange } from '../utils/dateUtils';
 import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../utils/analyticsUtils';
+import { filterHabitsByCategory, getActiveHabits, getHabitCategories, getHabitCategorySummary } from '../utils/habitUtils';
 import type { DayLogEvidence } from '../store/useHabitStore';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onOpenHabit: (habitId: string) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
   const habits = useHabitStore((state) => state.habits);
   const userProfile = useHabitStore((state) => state.userProfile);
   const toggleHabitCompletion = useHabitStore((state) => state.toggleHabitCompletion);
   const dayLogs = useHabitStore((state) => state.dayLogs);
   const addDayLog = useHabitStore((state) => state.addDayLog);
 
-  const activeHabits = habits.filter(h => !h.isArchived);
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const activeHabits = useMemo(() => getActiveHabits(habits), [habits]);
+  const categories = useMemo(() => getHabitCategories(activeHabits), [activeHabits]);
+  const scopedHabits = useMemo(() => filterHabitsByCategory(activeHabits, selectedCategory), [activeHabits, selectedCategory]);
 
   const todayIso = toISOLocal(new Date());
 
@@ -20,16 +28,23 @@ export const Dashboard: React.FC = () => {
   const last7Days = useMemo(() => generateDateRange(7), []);
 
   const completionsPerDay = useMemo(() => {
-    return getCompletionsPerDay(activeHabits, last7Days);
-  }, [activeHabits, last7Days]);
+    return getCompletionsPerDay(scopedHabits, last7Days);
+  }, [scopedHabits, last7Days]);
 
   const totalCompletionsThisWeek = completionsPerDay.reduce((a, b) => a + b, 0);
-  const consistencyScore = calculateConsistencyScore(activeHabits, 7, last7Days);
+  const consistencyScore = calculateConsistencyScore(scopedHabits, 7, last7Days);
+  const bestHabitThisWeek = useMemo(() => {
+    if (scopedHabits.length === 0) return null;
+    return [...scopedHabits]
+      .map((habit) => ({ habit, count: getHabitCompletionCount(habit, last7Days) }))
+      .sort((a, b) => b.count - a.count)[0];
+  }, [scopedHabits, last7Days]);
 
   const [activeMood, setActiveMood] = useState<string | null>(null);
   const [dayActivity, setDayActivity] = useState('');
   const [evidenceType, setEvidenceType] = useState<DayLogEvidence['kind']>('other');
   const [pendingEvidence, setPendingEvidence] = useState<DayLogEvidence[]>([]);
+  const categorySummary = useMemo(() => getHabitCategorySummary(activeHabits, todayIso), [activeHabits, todayIso]);
 
   const moods = [
     { emoji: '😔', label: 'Sad' },
@@ -132,10 +147,10 @@ export const Dashboard: React.FC = () => {
         <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] md:col-span-1 border border-primary/5 flex flex-col justify-between">
           <div>
             <p className="font-label-md text-label-md text-on-surface-variant mb-lg">Active Habits</p>
-            <span className="font-display-lg text-[48px] text-secondary leading-none">{activeHabits.length}</span>
+            <span className="font-display-lg text-[48px] text-secondary leading-none">{scopedHabits.length}</span>
           </div>
           <div className="flex gap-sm mt-md">
-            {activeHabits.slice(0,3).map(h => (
+            {scopedHabits.slice(0,3).map(h => (
               <div key={h.id} className="h-2 flex-1 rounded-full bg-secondary"></div>
             ))}
           </div>
@@ -150,7 +165,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex-1 flex items-end justify-between gap-sm px-sm pb-sm">
             {last7Days.map((day, i) => {
               const val = completionsPerDay[i];
-              const pct = activeHabits.length > 0 ? (val / activeHabits.length) * 100 : 0;
+              const pct = scopedHabits.length > 0 ? (val / scopedHabits.length) * 100 : 0;
               const isToday = day.iso === todayIso;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-sm">
@@ -170,19 +185,77 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+        <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] md:col-span-2 lg:col-span-4 border border-primary/5">
+          <div className="flex items-center justify-between mb-md">
+            <p className="font-label-md text-on-surface">Category Performance Snapshot</p>
+            <span className="text-xs text-on-surface-variant">Today</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-sm">
+            {categorySummary.map((item) => {
+              const pct = item.totalHabits > 0 ? Math.round((item.completedToday / item.totalHabits) * 100) : 0;
+              return (
+                <button
+                  key={item.category}
+                  onClick={() => setSelectedCategory(item.category)}
+                  className="rounded-lg border border-outline-variant/20 p-sm text-left hover:border-primary/30"
+                >
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-on-surface">{item.category}</span>
+                    <span className="text-primary font-semibold">{pct}%</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-primary/10 overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.max(pct, 3)}%` }}></div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
       {/* Wellness Habits Section (Today's Quick Checklist) */}
       <section className="mb-xxl">
-        <div className="flex justify-between items-center mb-lg">
+        <div className="flex flex-wrap justify-between items-center gap-sm mb-lg">
           <h3 className="font-headline-md text-headline-md text-on-surface">Today's Habits</h3>
+          <div className="flex gap-sm items-center">
+            <label htmlFor="dashboard-category-filter" className="text-sm text-on-surface-variant">Category</label>
+            <select
+              id="dashboard-category-filter"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="rounded-lg border border-outline-variant/30 bg-surface px-sm py-xs text-sm"
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
           <span className="text-primary font-label-md text-label-md flex items-center gap-xs">
             {format(new Date(), 'EEEE, MMMM d')}
           </span>
         </div>
+
+        {selectedCategory === 'All Categories' && categorySummary.length > 0 && (
+          <div className="mb-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-sm">
+            {categorySummary.map((item) => (
+              <button
+                key={item.category}
+                onClick={() => setSelectedCategory(item.category)}
+                className="text-left rounded-xl border border-primary/10 bg-surface-container-lowest p-md hover:border-primary/30 hover:bg-primary/5 transition-colors"
+              >
+                <p className="text-sm font-semibold text-on-surface">{item.category}</p>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  {item.completedToday}/{item.totalHabits} habits completed today
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-          {activeHabits.length === 0 && (
+          {scopedHabits.length === 0 && (
             <p className="text-on-surface-variant">No active habits. Click 'New Habit' to start.</p>
           )}
-          {activeHabits.map((habit) => {
+          {scopedHabits.map((habit) => {
             const isCompleted = habit.completedDates.includes(todayIso);
             return (
               <div key={habit.id} className={`p-md rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.06)] border flex items-center justify-between group transition-all ${isCompleted ? 'bg-primary/5 border-primary/20' : 'bg-surface-container-lowest border-primary/5 hover:border-primary/20'}`}>
@@ -202,6 +275,12 @@ export const Dashboard: React.FC = () => {
                   className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isCompleted ? 'border-primary bg-primary text-on-primary' : 'border-primary/20 text-primary hover:bg-primary hover:text-on-primary'}`}
                 >
                   <span className="material-symbols-outlined">check</span>
+                </button>
+                <button
+                  onClick={() => onOpenHabit(habit.id)}
+                  className="ml-2 rounded-lg border border-outline-variant/30 px-3 py-2 text-xs font-semibold text-on-surface-variant hover:text-primary hover:border-primary/40"
+                >
+                  Open
                 </button>
               </div>
             );
@@ -299,12 +378,12 @@ export const Dashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {activeHabits.length === 0 && (
+              {scopedHabits.length === 0 && (
                 <tr>
                   <td colSpan={9} className="p-8 text-center text-on-surface-variant">No data to display.</td>
                 </tr>
               )}
-              {activeHabits.map((habit) => {
+              {scopedHabits.map((habit) => {
                 const habitCompletionsThisWeek = getHabitCompletionCount(habit, last7Days);
                 const progressPct = (habitCompletionsThisWeek / 7) * 100;
                 
@@ -356,6 +435,15 @@ export const Dashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="mt-lg rounded-xl border border-primary/10 bg-primary/5 p-lg">
+        <h4 className="font-semibold text-primary mb-2">AI Coach Insight</h4>
+        <p className="text-sm text-on-surface-variant">
+          {bestHabitThisWeek
+            ? `Top performer: ${bestHabitThisWeek.habit.title} completed ${bestHabitThisWeek.count}/7 days. Keep this cue pattern and replicate it to lower-performing habits.`
+            : 'No habits tracked yet for this scope. Add habits and complete at least one to unlock personalized coaching.'}
+        </p>
       </section>
 
     </div>

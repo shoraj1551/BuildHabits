@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useHabitStore } from '../store/useHabitStore';
+import { DEFAULT_CATEGORY, normalizeCategory } from '../utils/habitUtils';
 
 interface AddHabitModalProps {
   isOpen: boolean;
@@ -13,8 +14,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose })
   const habits = useHabitStore((state) => state.habits);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('General');
-  const activeCategoryCount = habits.filter((habit) => !habit.isArchived && habit.category === category).length;
+  const [category, setCategory] = useState(DEFAULT_CATEGORY);
+  const activeCategoryCount = habits.filter((habit) => !habit.isArchived && normalizeCategory(habit.category) === normalizeCategory(category)).length;
   const isCategoryLimitReached = activeCategoryCount >= 10;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,12 +26,12 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose })
       title: title.trim(),
       description: description.trim(),
       isPremium: false,
-      category,
+      category: normalizeCategory(category),
     });
     
     setTitle('');
     setDescription('');
-    setCategory('General');
+    setCategory(DEFAULT_CATEGORY);
     onClose();
   };
 
