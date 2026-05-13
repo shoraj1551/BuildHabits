@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Home, BarChart, Settings, Plus } from 'lucide-react';
 import { AddHabitModal } from './AddHabitModal';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useHabitStore } from '../store/useHabitStore';
 
 export type Page = 'dashboard' | 'analytics' | 'settings' | 'habit-detail';
@@ -23,9 +23,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activePage, onNa
   ];
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 font-sans selection:bg-blue-500/30">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 font-sans selection:bg-blue-500/30 relative">
+      {/* Decorative Background Glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-400/10 blur-[120px] pointer-events-none" />
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 flex h-screen w-20 flex-col bg-white border-r border-slate-200/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 sm:w-[260px]">
+      <aside className="fixed left-0 top-0 z-40 flex h-screen w-20 flex-col bg-white/70 backdrop-blur-2xl border-r border-slate-200/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 sm:w-[260px]">
         <div className="flex h-20 items-center justify-center sm:justify-start sm:px-8 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 text-white">
@@ -66,7 +70,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activePage, onNa
         </nav>
         
         {/* User Profile */}
-        <div className="mb-6 mx-4 sm:mx-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center sm:justify-start gap-3">
+        <div className="mb-6 mx-4 sm:mx-6 p-4 rounded-2xl bg-white/50 backdrop-blur-md border border-slate-100 flex items-center justify-center sm:justify-start gap-3">
           <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
             <img src={userProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
           </div>
@@ -78,21 +82,34 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activePage, onNa
       </aside>
 
       {/* Main Content Area */}
-      <main className="ml-20 flex-1 overflow-y-auto sm:ml-[260px] bg-slate-50/50">
+      <main className="ml-20 flex-1 overflow-y-auto sm:ml-[260px] bg-transparent relative z-10">
         <div className="max-w-[1600px] mx-auto p-4 sm:p-8 h-full flex flex-col">
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePage}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="h-full"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
       {/* FAB - Add New Habit */}
-      <button 
+      <motion.button 
+        whileHover={{ scale: 1.05, y: -4 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-xl shadow-slate-900/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-slate-900/30 hover:bg-slate-800 active:translate-y-0 active:scale-95 z-50 group"
+        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-xl shadow-slate-900/20 z-50 group"
         aria-label="Add New Habit"
         title="Add New Habit"
       >
         <Plus className="h-6 w-6 transition-transform duration-300 group-hover:rotate-90" strokeWidth={2.5} />
-      </button>
+      </motion.button>
 
       <AddHabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>

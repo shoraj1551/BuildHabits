@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useHabitStore } from '../store/useHabitStore';
 import { format } from 'date-fns';
 import { toISOLocal, generateDateRange } from '../utils/dateUtils';
@@ -87,23 +88,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
     e.target.value = '';
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
     <div className="px-lg md:px-xxl py-xl max-w-[1400px] mx-auto w-full pb-32">
       
       {/* Welcome Section & Mood Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg mb-xxl">
-        <div className="lg:col-span-2">
-          <h2 className="font-display-lg text-display-lg text-primary mb-sm">Good morning, {userProfile.displayName?.split(' ')[0] || 'User'}.</h2>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-md">You're maintaining a great streak! Keep the momentum going and build those better days.</p>
+        <div className="lg:col-span-2 flex flex-col justify-center">
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-sm tracking-tight leading-tight">Good morning, <span className="text-blue-600">{userProfile.displayName?.split(' ')[0] || 'User'}</span>.</h2>
+          <p className="font-body-lg text-lg text-slate-500 max-w-2xl mt-2">You're maintaining a great streak! Keep the momentum going and build those better days.</p>
         </div>
-        <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] flex flex-col justify-between">
-          <p className="font-label-md text-label-md text-on-surface-variant mb-md">How are you feeling?</p>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white/70 backdrop-blur-xl border border-white/40 p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col justify-between"
+        >
+          <p className="font-label-md text-label-md text-slate-500 mb-md">How are you feeling?</p>
           <div className="flex justify-between items-center px-sm">
             {moods.map(m => (
-              <button 
+              <motion.button 
                 key={m.label} 
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setActiveMood(m.label)}
-                className="group flex flex-col items-center gap-xs"
+                className="group flex flex-col items-center gap-xs outline-none"
               >
                 <span className={`text-3xl transition-all transform group-hover:scale-125 ${activeMood === m.label ? 'grayscale-0 scale-125' : 'grayscale group-hover:grayscale-0'}`}>
                   {m.emoji}
@@ -111,16 +132,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
                 <span className={`text-[10px] font-bold ${activeMood === m.label ? 'text-primary' : 'text-outline-variant'}`}>
                   {m.label}
                 </span>
-              </button>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Summary Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg mb-xxl">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg mb-xxl"
+      >
         {/* Daily Steps */}
-        <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] md:col-span-1 border border-primary/5 flex flex-col items-center text-center">
+        <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-1 border border-white/60 flex flex-col items-center text-center">
           <p className="w-full text-left font-label-md text-label-md text-on-surface-variant mb-lg">Consistency</p>
           <div className="relative flex items-center justify-center mb-md">
             <svg className="w-32 h-32 transform -rotate-90">
@@ -141,10 +167,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
             <span className="material-symbols-outlined text-[16px] text-primary">trending_up</span>
             <span className="font-label-sm text-label-sm text-primary">Active Weekly Target</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Active Habits stat */}
-        <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] md:col-span-1 border border-primary/5 flex flex-col justify-between">
+        <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-1 border border-white/60 flex flex-col justify-between">
           <div>
             <p className="font-label-md text-label-md text-on-surface-variant mb-lg">Active Habits</p>
             <span className="font-display-lg text-[48px] text-secondary leading-none">{scopedHabits.length}</span>
@@ -154,10 +180,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               <div key={h.id} className="h-2 flex-1 rounded-full bg-secondary"></div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Habits Trend */}
-        <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] md:col-span-2 border border-primary/5 flex flex-col">
+        <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-2 border border-white/60 flex flex-col">
           <div className="flex justify-between items-center mb-lg">
             <p className="font-label-md text-label-md text-on-surface-variant">Weekly Completion</p>
             <span className="font-label-sm text-label-sm text-primary font-bold">Total: {totalCompletionsThisWeek}</span>
@@ -182,10 +208,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               );
             })}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-        <div className="bg-surface-container-lowest p-lg rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] md:col-span-2 lg:col-span-4 border border-primary/5">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-2 lg:col-span-4 border border-white/60 mb-xxl"
+        >
           <div className="flex items-center justify-between mb-md">
             <p className="font-label-md text-on-surface">Category Performance Snapshot</p>
             <span className="text-xs text-on-surface-variant">Today</span>
@@ -240,7 +270,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               <button
                 key={item.category}
                 onClick={() => setSelectedCategory(item.category)}
-                className="text-left rounded-xl border border-primary/10 bg-surface-container-lowest p-md hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                className="text-left rounded-xl border border-white/40 bg-white/60 backdrop-blur-md p-md hover:border-primary/30 hover:bg-white/80 transition-colors shadow-sm"
               >
                 <p className="text-sm font-semibold text-on-surface">{item.category}</p>
                 <p className="text-xs text-on-surface-variant mt-1">
@@ -258,7 +288,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
           {scopedHabits.map((habit) => {
             const isCompleted = habit.completedDates.includes(todayIso);
             return (
-              <div key={habit.id} className={`p-md rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.06)] border flex items-center justify-between group transition-all ${isCompleted ? 'bg-primary/5 border-primary/20' : 'bg-surface-container-lowest border-primary/5 hover:border-primary/20'}`}>
+              <motion.div 
+                whileHover={{ y: -2 }}
+                key={habit.id} 
+                className={`p-md rounded-xl shadow-[0px_10px_20px_rgba(0,0,0,0.02)] border flex items-center justify-between group transition-all ${isCompleted ? 'bg-primary/5 border-primary/20 backdrop-blur-md' : 'bg-white/70 backdrop-blur-md border-white/60 hover:border-primary/20'}`}
+              >
                 <div className="flex items-center gap-md">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isCompleted ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-tertiary/10 text-tertiary'}`}>
                     <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -282,14 +316,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
                 >
                   Open
                 </button>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       </section>
 
       {/* Daily Activity Log */}
-      <section className="mb-xxl bg-surface-container-lowest rounded-xxl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] border border-outline-variant/10 p-lg">
+      <section className="mb-xxl bg-white/70 backdrop-blur-xl rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-white/60 p-lg">
         <div className="flex items-center justify-between mb-md">
           <h3 className="font-headline-md text-on-surface">Log Your Day</h3>
           <span className="text-xs text-on-surface-variant">{format(new Date(), 'MMMM d, yyyy')}</span>
@@ -357,7 +391,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
       </section>
 
       {/* 7-Day Data Table Container */}
-      <section className="bg-surface-container-lowest rounded-xxl shadow-[0px_20px_40px_rgba(92,36,179,0.08)] border border-outline-variant/10 overflow-hidden">
+      <section className="bg-white/70 backdrop-blur-xl rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-white/60 overflow-hidden mb-xxl">
         <div className="p-lg bg-surface-container-low/50 border-b border-outline-variant/20">
           <h3 className="font-headline-md text-on-surface">Weekly Overview</h3>
         </div>
