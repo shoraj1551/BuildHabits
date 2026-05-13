@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useHabitStore } from '../store/useHabitStore';
 import { DEFAULT_CATEGORY, normalizeCategory } from '../utils/habitUtils';
+import { motionTokens } from '../utils/motion';
 
 interface AddHabitModalProps {
   isOpen: boolean;
@@ -43,7 +44,7 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose })
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: motionTokens.duration.short, ease: motionTokens.ease.swift }}
             className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm"
             onClick={onClose}
           />
@@ -51,11 +52,11 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({ isOpen, onClose })
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+            transition={motionTokens.spring.soft}
             className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 p-4"
           >
-            <div className="overflow-hidden rounded-3xl bg-white shadow-2xl shadow-slate-900/20 border border-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+            <div className="overflow-hidden rounded-3xl bg-white shadow-2xl shadow-slate-900/20 border border-slate-200 ring-1 ring-white/40">
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-gradient-to-r from-slate-50 to-white">
                 <h2 className="text-xl font-bold tracking-tight text-slate-900">Create New Habit</h2>
                 <button
                   onClick={onClose}

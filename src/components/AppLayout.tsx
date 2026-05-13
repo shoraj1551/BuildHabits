@@ -3,6 +3,7 @@ import { Home, BarChart, Settings, Plus } from 'lucide-react';
 import { AddHabitModal } from './AddHabitModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHabitStore } from '../store/useHabitStore';
+import { motionTokens } from '../utils/motion';
 
 export type Page = 'dashboard' | 'analytics' | 'settings' | 'habit-detail';
 
@@ -57,7 +58,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activePage, onNa
                   <motion.div 
                     layoutId="sidebarActiveIndicator"
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-r-full"
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    transition={motionTokens.spring.snappy}
                   />
                 )}
                 <Icon className={`h-5 w-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} strokeWidth={isActive ? 2.5 : 2} />
@@ -90,7 +91,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activePage, onNa
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              transition={{ duration: motionTokens.duration.medium, ease: motionTokens.ease.standard }}
               className="h-full"
             >
               {children}
@@ -104,7 +105,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activePage, onNa
         whileHover={{ scale: 1.05, y: -4 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-xl shadow-slate-900/20 z-50 group"
+        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-slate-900 to-slate-700 text-white shadow-xl shadow-slate-900/25 z-50 group ring-1 ring-white/20"
         aria-label="Add New Habit"
         title="Add New Habit"
       >

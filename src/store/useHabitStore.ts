@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { toISOLocal } from '../utils/dateUtils';
+import { getMonthKey, isInCurrentMonth, isInCurrentWeek, toISOLocal } from '../utils/dateUtils';
 import { normalizeCategory } from '../utils/habitUtils';
+import { ACTIVE_DAY_LOG_RANGE_DAYS, readArchiveMap, writeArchiveMap } from '../features/daylog/utils/dayLogArchive';
 
 export interface Habit {
   id: string;
@@ -36,6 +37,7 @@ export interface DayLogEvidence {
 }
 
 interface HabitStore {
+  archivedDayLogs: Record<string, DayLogEntry[]>;
   habits: Habit[];
   userProfile: UserProfile;
   isAddModalOpen: boolean;
@@ -48,6 +50,11 @@ interface HabitStore {
   clearAllData: () => void;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   addDayLog: (activity: string, targetDate?: string, evidences?: DayLogEvidence[]) => void;
+  monthValidation: Record<string, boolean>;
+  validateCurrentMonthData: () => void;
+  canModifyDate: (dateIso: string) => boolean;
+  archiveOldLogsToCloud: () => void;
+  retrieveArchivedLogsForDate: (dateIso: string) => DayLogEntry[];
 }
 
 const DEFAULT_USER_PROFILE: UserProfile = {
@@ -62,6 +69,8 @@ export const useHabitStore = create<HabitStore>()(
     (set) => ({
       habits: [],
       dayLogs: [],
+      archivedDayLogs: {},
+      monthValidation: {},
       userProfile: DEFAULT_USER_PROFILE,
       isAddModalOpen: false,
       setAddModalOpen: (isOpen) => set({ isAddModalOpen: isOpen }),
@@ -102,8 +111,11 @@ export const useHabitStore = create<HabitStore>()(
         habits: state.habits.map((habit) => {
           if (habit.id !== id) return habit;
           
-          // Use centralized date utility
           const dateStr = targetDate || toISOLocal(new Date());
+          const monthKey = dateStr.slice(0, 7);
+          const monthLocked = state.monthValidation[monthKey] === true;
+          const editable = isInCurrentMonth(dateStr) && isInCurrentWeek(dateStr) && !monthLocked;
+          if (!editable) return habit;
           const hasCompleted = habit.completedDates.includes(dateStr);
           
           return {
@@ -119,13 +131,18 @@ export const useHabitStore = create<HabitStore>()(
         userProfile: { ...state.userProfile, ...updates }
       })),
       addDayLog: (activity, targetDate, evidences = []) => set((state) => {
+        const dateStr = targetDate || toISOLocal(new Date());
+        const monthKey = dateStr.slice(0, 7);
+        const monthLocked = state.monthValidation[monthKey] === true;
+        const editable = isInCurrentMonth(dateStr) && isInCurrentWeek(dateStr) && !monthLocked;
+        if (!editable) return state;
         const trimmed = activity.trim();
         if (!trimmed && evidences.length === 0) return state;
         return {
           dayLogs: [
             {
               id: crypto.randomUUID(),
-              date: targetDate || toISOLocal(new Date()),
+              date: dateStr,
               createdAt: new Date(),
               activity: trimmed || 'Evidence-only log entry',
               evidences
@@ -134,10 +151,49 @@ export const useHabitStore = create<HabitStore>()(
           ]
         };
       }),
+      validateCurrentMonthData: () => set((state) => {
+        const key = getMonthKey(new Date());
+        return { monthValidation: { ...state.monthValidation, [key]: true } };
+      }),
+
+      archiveOldLogsToCloud: () => set((state) => {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - ACTIVE_DAY_LOG_RANGE_DAYS);
+        const cutoffIso = toISOLocal(cutoff);
+
+        const toArchive = state.dayLogs.filter((log) => log.date < cutoffIso);
+        if (toArchive.length === 0) return state;
+
+        const archiveMap = { ...state.archivedDayLogs };
+        toArchive.forEach((log) => {
+          archiveMap[log.date] = [...(archiveMap[log.date] ?? []), log];
+        });
+
+        writeArchiveMap(archiveMap);
+
+        return {
+          dayLogs: state.dayLogs.filter((log) => log.date >= cutoffIso),
+          archivedDayLogs: archiveMap
+        };
+      }),
+      retrieveArchivedLogsForDate: (dateIso) => {
+        const state = useHabitStore.getState();
+        const inMemory = state.archivedDayLogs[dateIso] ?? [];
+        if (inMemory.length > 0) return inMemory;
+        const parsed = readArchiveMap();
+        return parsed[dateIso] ?? [];
+      },
+      canModifyDate: (dateIso) => {
+        const key = dateIso.slice(0, 7);
+        const state = useHabitStore.getState();
+        return isInCurrentMonth(dateIso) && isInCurrentWeek(dateIso) && state.monthValidation[key] !== true;
+      },
 
       clearAllData: () => set({
         habits: [],
         dayLogs: [],
+        monthValidation: {},
+        archivedDayLogs: {},
         userProfile: DEFAULT_USER_PROFILE,
         isAddModalOpen: false
       })
@@ -193,11 +249,14 @@ export const useHabitStore = create<HabitStore>()(
               .filter((log: any) => log.activity.length > 0)
           : [];
         
+        const safeArchivedLogs = persistedState.archivedDayLogs && typeof persistedState.archivedDayLogs === 'object' ? persistedState.archivedDayLogs : {};
+
         return {
           ...currentState,
           ...persistedState,
           habits: safeHabits,
-          dayLogs: safeDayLogs
+          dayLogs: safeDayLogs,
+          archivedDayLogs: safeArchivedLogs
         };
       }
     }
