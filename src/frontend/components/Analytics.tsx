@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useHabitStore } from '../store/useHabitStore';
+import { useHabitStore, HabitStore, Habit } from '../../backend/store/useHabitStore';
 import { format } from 'date-fns';
-import { toISOLocal, generateCurrentMonthRange, generateCurrentWeekRange } from '../utils/dateUtils';
-import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../utils/analyticsUtils';
-import { filterHabitsByCategory, getActiveHabits, getHabitCategories } from '../utils/habitUtils';
+import { toISOLocal, generateCurrentMonthRange, generateCurrentWeekRange } from '../../shared/utils/dateUtils';
+import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../../shared/utils/analyticsUtils';
+import { filterHabitsByCategory, getActiveHabits, getHabitCategories } from '../../shared/utils/habitUtils';
 
 export const Analytics: React.FC = () => {
-  const habits = useHabitStore((state) => state.habits);
-  const toggleHabitCompletion = useHabitStore((state) => state.toggleHabitCompletion);
+  const habits = useHabitStore((state: HabitStore) => state.habits);
+  const toggleHabitCompletion = useHabitStore((state: HabitStore) => state.toggleHabitCompletion);
 
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
@@ -70,7 +70,7 @@ export const Analytics: React.FC = () => {
   const renderMatrixRows = (habitList: typeof habits, isArchivedSection: boolean) => {
     if (habitList.length === 0) return null;
     
-    return habitList.map((habit) => {
+    return habitList.map((habit: Habit) => {
       // Calculate habit specific reliability
       const habitCompletions = getHabitCompletionCount(habit, days);
       const habitReliability = days.length > 0 ? Math.round((habitCompletions / days.length) * 100) : 0;
@@ -118,8 +118,8 @@ export const Analytics: React.FC = () => {
       {/* Filters & Overview Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-md">
         <div>
-          <h3 className="font-display-lg text-headline-lg text-on-surface">Weekly Progress</h3>
-          <p className="font-body-md text-on-surface-variant">You've completed {reliability}% of your goals tracked. Keep it up!</p>
+          <h3 className="font-display-lg text-headline-lg text-white glow-text">Weekly Progress</h3>
+          <p className="font-body-md text-slate-400">You've completed {reliability}% of your goals tracked. Keep it up!</p>
         </div>
         <div className="flex items-center gap-sm">
           <label className="text-sm text-on-surface-variant">Category</label>
@@ -133,16 +133,16 @@ export const Analytics: React.FC = () => {
             ))}
           </select>
         </div>
-        <div className="bg-surface-container-low p-base rounded-xl flex items-center border border-outline-variant/30 shadow-sm shrink-0">
+        <div className="bg-slate-900/60 p-base rounded-xl flex items-center border border-white/5 shadow-xl shrink-0">
           <button 
             onClick={() => setPeriod('week')}
-            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${period === 'week' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${period === 'week' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
           >
             Current Week
           </button>
           <button 
             onClick={() => setPeriod('month')}
-            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${period === 'month' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'}`}
+            className={`px-lg py-sm rounded-lg font-bold transition-all text-label-md ${period === 'month' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
           >
             Current Month
           </button>
@@ -153,7 +153,7 @@ export const Analytics: React.FC = () => {
       <div className="grid grid-cols-12 gap-lg">
         
         {/* Total Output Chart (Large) */}
-        <div className="col-span-12 lg:col-span-8 bg-white/70 backdrop-blur-md border border-white/30 shadow-[0px_20px_40px_rgba(92,36,179,0.08)] p-lg rounded-[24px] flex flex-col h-[400px]">
+        <div className="col-span-12 lg:col-span-8 bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-2xl p-lg rounded-[24px] flex flex-col h-[400px]">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-headline-md text-on-surface">Total Output</h4>
@@ -192,7 +192,7 @@ export const Analytics: React.FC = () => {
         </div>
 
         {/* Weekday Consistency Chart */}
-        <div className="col-span-12 lg:col-span-6 bg-white/70 backdrop-blur-md border border-white/30 shadow-[0px_20px_40px_rgba(92,36,179,0.08)] p-lg rounded-[24px]">
+        <div className="col-span-12 lg:col-span-6 bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-2xl p-lg rounded-[24px]">
           <div className="flex justify-between items-center mb-md">
             <h4 className="font-headline-md text-on-surface">Weekday Consistency</h4>
             <span className="text-xs text-on-surface-variant">Average completions</span>
@@ -214,7 +214,7 @@ export const Analytics: React.FC = () => {
         </div>
 
         {/* Habit Reliability Ranking */}
-        <div className="col-span-12 lg:col-span-6 bg-white/70 backdrop-blur-md border border-white/30 shadow-[0px_20px_40px_rgba(92,36,179,0.08)] p-lg rounded-[24px]">
+        <div className="col-span-12 lg:col-span-6 bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-2xl p-lg rounded-[24px]">
           <div className="flex justify-between items-center mb-md">
             <h4 className="font-headline-md text-on-surface">Habit Reliability Ranking</h4>
             <span className="text-xs text-on-surface-variant">Top performers</span>
@@ -243,7 +243,7 @@ export const Analytics: React.FC = () => {
         </div>
 
         {/* Active Habits Card (Small) */}
-        <div className="col-span-12 lg:col-span-4 bg-white/70 backdrop-blur-md border border-white/30 shadow-[0px_20px_40px_rgba(92,36,179,0.08)] p-lg rounded-[24px] flex flex-col justify-between overflow-hidden relative">
+        <div className="col-span-12 lg:col-span-4 bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-2xl p-lg rounded-[24px] flex flex-col justify-between overflow-hidden relative">
           <div className="relative z-10">
             <h4 className="font-headline-md text-on-surface">Active Habits</h4>
             <p className="font-label-sm text-on-surface-variant">Currently tracking</p>
@@ -282,7 +282,7 @@ export const Analytics: React.FC = () => {
         </div>
 
         {/* Habit Trajectory Matrix (Heatmap - Full Width) */}
-        <div className="col-span-12 bg-white/70 backdrop-blur-md border border-white/30 shadow-[0px_20px_40px_rgba(92,36,179,0.08)] p-lg rounded-[24px]">
+        <div className="col-span-12 bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-2xl p-lg rounded-[24px]">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-xl gap-md">
             <div>
               <h4 className="font-headline-md text-on-surface">Habit Trajectory Matrix</h4>
@@ -323,10 +323,10 @@ export const Analytics: React.FC = () => {
                 {renderMatrixRows(scopedHabits, false)}
                 
                 {/* Archived */}
-                {habits.filter(h => h.isArchived).length > 0 && (
+                {habits.filter((h: Habit) => h.isArchived).length > 0 && (
                   <>
                     <div className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mt-8 mb-2 border-b border-outline-variant/20 pb-2">Archived Habits</div>
-                    {renderMatrixRows(habits.filter(h => h.isArchived), true)}
+                    {renderMatrixRows(habits.filter((h: Habit) => h.isArchived), true)}
                   </>
                 )}
               </div>

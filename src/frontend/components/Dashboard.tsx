@@ -1,29 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useHabitStore } from '../store/useHabitStore';
+import { useHabitStore, HabitStore } from '../../backend/store/useHabitStore';
 import { format } from 'date-fns';
-import { toISOLocal, generateDateRange, getMonthKey, isLastDayOfMonth } from '../utils/dateUtils';
-import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../utils/analyticsUtils';
-import { filterHabitsByCategory, getActiveHabits, getCategoryTheme, getHabitCategories, getHabitCategorySummary } from '../utils/habitUtils';
-import type { DayLogEvidence } from '../store/useHabitStore';
-import { motionTokens } from '../utils/motion';
-import { DayLogPanel } from '../features/daylog/components/DayLogPanel';
+import { toISOLocal, generateDateRange, getMonthKey, isLastDayOfMonth } from '../../shared/utils/dateUtils';
+import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../../shared/utils/analyticsUtils';
+import { filterHabitsByCategory, getActiveHabits, getCategoryTheme, getHabitCategories, getHabitCategorySummary } from '../../shared/utils/habitUtils';
+import type { DayLogEvidence } from '../../backend/store/useHabitStore';
+import { motionTokens } from '../../design-system/tokens/motion';
+import { DayLogPanel } from './DayLogPanel';
 
 interface DashboardProps {
   onOpenHabit: (habitId: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
-  const habits = useHabitStore((state) => state.habits);
-  const userProfile = useHabitStore((state) => state.userProfile);
-  const toggleHabitCompletion = useHabitStore((state) => state.toggleHabitCompletion);
-  const dayLogs = useHabitStore((state) => state.dayLogs);
-  const addDayLog = useHabitStore((state) => state.addDayLog);
-  const monthValidation = useHabitStore((state) => state.monthValidation);
-  const validateCurrentMonthData = useHabitStore((state) => state.validateCurrentMonthData);
-  const canModifyDate = useHabitStore((state) => state.canModifyDate);
-  const archiveOldLogsToCloud = useHabitStore((state) => state.archiveOldLogsToCloud);
-  const retrieveArchivedLogsForDate = useHabitStore((state) => state.retrieveArchivedLogsForDate);
+  const habits = useHabitStore((state: HabitStore) => state.habits);
+  const userProfile = useHabitStore((state: HabitStore) => state.userProfile);
+  const toggleHabitCompletion = useHabitStore((state: HabitStore) => state.toggleHabitCompletion);
+  const dayLogs = useHabitStore((state: HabitStore) => state.dayLogs);
+  const addDayLog = useHabitStore((state: HabitStore) => state.addDayLog);
+  const monthValidation = useHabitStore((state: HabitStore) => state.monthValidation);
+  const validateCurrentMonthData = useHabitStore((state: HabitStore) => state.validateCurrentMonthData);
+  const canModifyDate = useHabitStore((state: HabitStore) => state.canModifyDate);
+  const archiveOldLogsToCloud = useHabitStore((state: HabitStore) => state.archiveOldLogsToCloud);
+  const retrieveArchivedLogsForDate = useHabitStore((state: HabitStore) => state.retrieveArchivedLogsForDate);
 
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const activeHabits = useMemo(() => getActiveHabits(habits), [habits]);
@@ -53,7 +53,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
 
   const [activeMood, setActiveMood] = useState<string | null>(null);
   const categorySummary = useMemo(() => getHabitCategorySummary(activeHabits, todayIso), [activeHabits, todayIso]);
-  const selectedCategoryTheme = useMemo(() => getCategoryTheme(selectedCategory), [selectedCategory]);
+
 
   const moods = [
     { emoji: '😔', label: 'Sad' },
@@ -86,7 +86,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
   };
 
   return (
-    <div className={`px-lg md:px-xxl py-xl max-w-[1400px] mx-auto w-full pb-32 bg-gradient-to-b ${selectedCategoryTheme.ambientClass}`}>
+    <div className={`px-lg md:px-xxl py-xl max-w-[1400px] mx-auto w-full pb-32 bg-background min-h-screen relative`}>
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-600/5 to-transparent pointer-events-none" />
       {isMonthEnd && !isCurrentMonthValidated && (
         <div className="mb-lg rounded-xl border border-amber-300 bg-amber-50 px-md py-sm flex items-center justify-between gap-md">
           <p className="text-sm text-amber-900 font-medium">Month-end validation required. Validate now; after validation, this month is locked from edits.</p>
@@ -97,16 +98,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
       {/* Welcome Section & Mood Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg mb-xxl">
         <div className="lg:col-span-2 flex flex-col justify-center">
-          <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold text-slate-800 mb-sm tracking-tight leading-tight">Good morning, <span className="text-blue-600">{userProfile.displayName?.split(' ')[0] || 'User'}</span>.</h2>
-          <p className="font-body-lg text-lg text-slate-500 max-w-2xl mt-2">You're maintaining a great streak! Keep the momentum going and build those better days.</p>
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-sm tracking-tight leading-tight glow-text">Good morning, <span className="text-blue-400">{userProfile.displayName?.split(' ')[0] || 'User'}</span>.</h2>
+          <p className="font-body-lg text-lg text-slate-400 max-w-2xl mt-2">You're maintaining a great streak! Keep the momentum going and build those better days.</p>
         </div>
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.15, duration: motionTokens.duration.medium, ease: motionTokens.ease.standard }}
-          className="bg-white/75 backdrop-blur-xl border border-white/50 p-lg rounded-[24px] shadow-[0px_24px_48px_rgba(15,23,42,0.08)] flex flex-col justify-between"
+          className="bg-slate-900/40 backdrop-blur-xl border border-white/10 p-lg rounded-[24px] shadow-2xl flex flex-col justify-between"
         >
-          <p className="font-label-md text-label-md text-slate-500 mb-md">How are you feeling?</p>
+          <p className="font-label-md text-label-md text-slate-400 mb-md uppercase tracking-wider">How are you feeling?</p>
           <div className="flex justify-between items-center px-sm">
             {moods.map(m => (
               <motion.button 
@@ -136,8 +137,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg mb-xxl"
       >
         {/* Daily Steps */}
-        <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_24px_50px_rgba(15,23,42,0.08)] md:col-span-1 border border-white/70 flex flex-col items-center text-center">
-          <p className="w-full text-left font-label-md text-label-md text-on-surface-variant mb-lg">Consistency</p>
+        <motion.div variants={itemVariants} className="bg-slate-900/40 backdrop-blur-xl p-lg rounded-[24px] border border-white/10 flex flex-col items-center text-center shadow-xl">
+          <p className="w-full text-left font-label-md text-label-md text-slate-400 mb-lg uppercase tracking-wider">Consistency</p>
           <div className="relative flex items-center justify-center mb-md">
             <svg className="w-32 h-32 transform -rotate-90">
               <circle className="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="54" stroke="currentColor" strokeWidth="8"></circle>
@@ -160,10 +161,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         </motion.div>
 
         {/* Active Habits stat */}
-        <motion.div variants={itemVariants} className="bg-white/65 backdrop-blur-lg p-lg rounded-[24px] shadow-[0px_18px_35px_rgba(15,23,42,0.06)] md:col-span-1 border border-white/60 flex flex-col justify-between">
+        <motion.div variants={itemVariants} className="bg-slate-900/40 backdrop-blur-xl p-lg rounded-[24px] border border-white/10 flex flex-col justify-between shadow-xl">
           <div>
-            <p className="font-label-md text-label-md text-on-surface-variant mb-lg">Active Habits</p>
-            <span className="font-display-lg text-[48px] text-secondary leading-none">{scopedHabits.length}</span>
+            <p className="font-label-md text-label-md text-slate-400 mb-lg uppercase tracking-wider">Active Habits</p>
+            <span className="font-display-lg text-[48px] text-blue-400 leading-none glow-text">{scopedHabits.length}</span>
           </div>
           <div className="flex gap-sm mt-md">
             {scopedHabits.slice(0,3).map(h => (
@@ -173,9 +174,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         </motion.div>
 
         {/* Habits Trend */}
-        <motion.div variants={itemVariants} className="bg-gradient-to-b from-white/85 to-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_24px_50px_rgba(15,23,42,0.08)] md:col-span-2 border border-white/70 flex flex-col">
+        <motion.div variants={itemVariants} className="bg-slate-900/40 backdrop-blur-xl p-lg rounded-[24px] md:col-span-2 border border-white/10 flex flex-col shadow-xl">
           <div className="flex justify-between items-center mb-lg">
-            <p className="font-label-md text-label-md text-on-surface-variant">Weekly Completion</p>
+            <p className="font-label-md text-label-md text-slate-400 uppercase tracking-wider">Weekly Completion</p>
             <span className="font-label-sm text-label-sm text-primary font-bold">Total: {totalCompletionsThisWeek}</span>
           </div>
           <div className="flex-1 flex items-end justify-between gap-sm px-sm pb-sm">
@@ -204,11 +205,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_22px_42px_rgba(15,23,42,0.07)] md:col-span-2 lg:col-span-4 border border-white/60 mb-xxl"
+          className="bg-slate-900/30 backdrop-blur-xl p-lg rounded-[24px] md:col-span-2 lg:col-span-4 border border-white/5 mb-xxl"
         >
           <div className="flex items-center justify-between mb-md">
-            <p className="font-label-md text-on-surface">Category Performance Snapshot</p>
-            <span className="text-xs text-on-surface-variant">Today</span>
+            <p className="font-label-md text-white glow-text">Category Performance Snapshot</p>
+            <span className="text-xs text-slate-400 uppercase tracking-widest">Today</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-sm">
             {categorySummary.map((item) => {
@@ -220,8 +221,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
                   className="rounded-lg border border-outline-variant/20 p-sm text-left hover:border-primary/30"
                 >
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium text-on-surface">{item.category}</span>
-                    <span className="text-primary font-semibold">{pct}%</span>
+                    <span className="font-medium text-slate-200">{item.category}</span>
+                    <span className="text-blue-400 font-semibold">{pct}%</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-primary/10 overflow-hidden">
                     <div className="h-full bg-primary rounded-full" style={{ width: `${Math.max(pct, 3)}%` }}></div>
@@ -235,7 +236,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
       {/* Wellness Habits Section (Today's Quick Checklist) */}
       <section className="mb-xxl">
         <div className="flex flex-wrap justify-between items-center gap-sm mb-lg">
-          <h3 className="font-headline-md text-headline-md text-on-surface">Today's Habits</h3>
+          <h3 className="font-headline-md text-headline-md text-white glow-text">Today's Habits</h3>
           <div className="flex gap-sm items-center">
             <label htmlFor="dashboard-category-filter" className="text-sm text-on-surface-variant">Category</label>
             <select
@@ -260,10 +261,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               <button
                 key={item.category}
                 onClick={() => setSelectedCategory(item.category)}
-                className={`text-left rounded-xl border bg-white/60 backdrop-blur-md p-md hover:bg-white/80 transition-colors shadow-sm ${getCategoryTheme(item.category).badgeClass}`}
+                className={`text-left rounded-xl border border-white/5 bg-slate-800/40 backdrop-blur-md p-md hover:bg-slate-800/60 transition-colors shadow-lg`}
               >
-                <p className="text-sm font-semibold text-on-surface">{item.category}</p>
-                <p className="text-xs text-on-surface-variant mt-1">
+                <p className="text-sm font-semibold text-white">{item.category}</p>
+                <p className="text-xs text-slate-400 mt-1">
                   {item.completedToday}/{item.totalHabits} habits completed today
                 </p>
               </button>
@@ -289,11 +290,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               : {};
             return (
               <motion.div 
-                whileHover={{ y: -2 }}
+                whileHover={{ y: -2, backgroundColor: 'rgba(30, 41, 59, 0.6)' }}
                 animate={motionByCategory}
                 transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
                 key={habit.id} 
-                className={`p-md rounded-xl shadow-[0px_10px_20px_rgba(0,0,0,0.02)] border flex items-center justify-between group transition-all bg-gradient-to-r ${theme.cardClass} ${isCompleted ? 'ring-1 ring-white/80 backdrop-blur-md' : 'backdrop-blur-md'}`}
+                className={`p-md rounded-xl shadow-lg border border-white/5 flex items-center justify-between group transition-all bg-slate-900/40 backdrop-blur-md`}
               >
                 <div className="flex items-center gap-md">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isCompleted ? 'bg-white text-slate-800 shadow-lg shadow-white/40' : theme.badgeClass}`}>
@@ -334,7 +335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
       />
 
       {/* 7-Day Data Table Container */}
-      <section className="bg-white/70 backdrop-blur-xl rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-white/60 overflow-hidden mb-xxl">
+      <section className="bg-slate-900/40 backdrop-blur-xl rounded-[24px] shadow-2xl border border-white/10 overflow-hidden mb-xxl">
         <div className="p-lg bg-surface-container-low/50 border-b border-outline-variant/20">
           <h3 className="font-headline-md text-on-surface">Weekly Overview</h3>
         </div>
@@ -365,8 +366,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
                 const progressPct = (habitCompletionsThisWeek / 7) * 100;
                 
                 return (
-                  <tr key={habit.id} className="group hover:bg-surface-container-low/30 transition-colors">
-                    <td className="p-lg border-b border-outline-variant/10 sticky left-0 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
+                  <tr key={habit.id} className="group hover:bg-slate-800/30 transition-colors">
+                    <td className="p-lg border-b border-white/5 sticky left-0 bg-slate-900/90 group-hover:bg-slate-800/90 z-10 shadow-[2px_0_10px_rgba(0,0,0,0.2)]">
                       <div className="flex items-center gap-md">
                         <div className="w-10 h-10 rounded-lg bg-secondary-container/10 flex items-center justify-center text-secondary">
                           <span className="material-symbols-outlined" data-icon="fitness_center">star</span>

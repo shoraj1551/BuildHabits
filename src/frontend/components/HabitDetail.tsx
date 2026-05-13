@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { format } from 'date-fns';
-import { useHabitStore } from '../store/useHabitStore';
-import { generateDateRange, toISOLocal } from '../utils/dateUtils';
-import { normalizeCategory } from '../utils/habitUtils';
+import { useHabitStore, HabitStore, Habit } from '../../backend/store/useHabitStore';
+import { generateDateRange, toISOLocal } from '../../shared/utils/dateUtils';
+import { normalizeCategory } from '../../shared/utils/habitUtils';
 
 interface HabitDetailProps {
   habitId: string;
@@ -10,7 +10,7 @@ interface HabitDetailProps {
 }
 
 export const HabitDetail: React.FC<HabitDetailProps> = ({ habitId, onBack }) => {
-  const habit = useHabitStore((state) => state.habits.find((item) => item.id === habitId));
+  const habit = useHabitStore((state: HabitStore) => state.habits.find((item: Habit) => item.id === habitId));
 
   const recentDays = useMemo(() => generateDateRange(14), []);
   const weeklyTarget = 7;

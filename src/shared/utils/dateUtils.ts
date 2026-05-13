@@ -10,6 +10,9 @@ export const toISOLocal = (date: Date = new Date()): string => {
   return `${year}-${month}-${day}`;
 };
 
+export const getCurrentDateIso = (): string => toISOLocal(new Date());
+
+
 export interface DayContext {
   date: Date;
   iso: string;
@@ -77,3 +80,10 @@ export const isInCurrentMonth = (isoDate: string, now: Date = new Date()): boole
   if (Number.isNaN(target.getTime())) return false;
   return target.getFullYear() === now.getFullYear() && target.getMonth() === now.getMonth();
 };
+
+export const isDateEditable = (isoDate: string, monthValidation: Record<string, boolean>, now: Date = new Date()): boolean => {
+  const monthKey = isoDate.slice(0, 7);
+  const monthLocked = monthValidation[monthKey] === true;
+  return isInCurrentMonth(isoDate, now) && isInCurrentWeek(isoDate, now) && !monthLocked;
+};
+

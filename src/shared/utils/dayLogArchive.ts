@@ -1,4 +1,4 @@
-import type { DayLogEntry } from '../../../store/useHabitStore';
+import type { DayLogEntry } from '../../backend/models/habitModels';
 
 export const DAY_LOG_ARCHIVE_STORAGE_KEY = 'habit-tracker-cloud-archive';
 export const ACTIVE_DAY_LOG_RANGE_DAYS = 300;

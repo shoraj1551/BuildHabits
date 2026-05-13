@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import type { DayLogEntry, DayLogEvidence } from '../../../store/useHabitStore';
-import { generateDateRange } from '../../../utils/dateUtils';
+import type { DayLogEntry, DayLogEvidence } from '../../backend/store/useHabitStore';
+import { generateDateRange } from '../../shared/utils/dateUtils';
+import { generateId } from '../../shared/utils/uuid';
 
 interface DayLogPanelProps {
   todayIso: string;
@@ -37,7 +38,7 @@ export const DayLogPanel: React.FC<DayLogPanelProps> = ({
       reader.onload = () => {
         const dataUrl = typeof reader.result === 'string' ? reader.result : '';
         if (!dataUrl) return;
-        setPendingEvidence((prev) => [...prev, { id: crypto.randomUUID(), kind: evidenceType, name: file.name, mimeType: file.type || 'application/octet-stream', dataUrl, addedAt: new Date() }]);
+        setPendingEvidence((prev) => [...prev, { id: generateId(), kind: evidenceType, name: file.name, mimeType: file.type || 'application/octet-stream', dataUrl, addedAt: new Date() }]);
       };
       reader.readAsDataURL(file);
     });
@@ -53,7 +54,7 @@ export const DayLogPanel: React.FC<DayLogPanelProps> = ({
   };
 
   return (
-    <section className="mb-xxl bg-white/70 backdrop-blur-xl rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-white/60 p-lg">
+    <section className="mb-xxl bg-slate-900/40 backdrop-blur-xl rounded-[24px] shadow-2xl border border-white/10 p-lg">
       <div className="flex items-center justify-between mb-md">
         <h3 className="font-headline-md text-on-surface">Log Your Day</h3>
         <span className="text-xs text-on-surface-variant">{format(new Date(), 'MMMM d, yyyy')}</span>
@@ -86,8 +87,8 @@ export const DayLogPanel: React.FC<DayLogPanelProps> = ({
         <p className="text-sm font-semibold text-on-surface mb-sm">Timeline for {selectedLogDate}</p>
         <div className="relative ml-2 border-l-2 border-primary/20 pl-md space-y-md">
           {[...logsForSelectedDate, ...archivedLogsForSelectedDate].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)).map((log) => (
-            <motion.div key={log.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="relative rounded-xl border border-outline-variant/20 bg-white/70 p-sm shadow-sm">
-              <span className="absolute -left-[22px] top-4 h-3 w-3 rounded-full bg-primary" />
+            <motion.div key={log.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="relative rounded-xl border border-white/5 bg-slate-800/40 p-sm shadow-lg">
+              <span className="absolute -left-[22px] top-4 h-3 w-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
               <p className="text-sm text-on-surface">{log.activity}</p>
             </motion.div>
           ))}

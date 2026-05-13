@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useHabitStore } from '../store/useHabitStore';
+import { useHabitStore, HabitStore, Habit } from '../../backend/store/useHabitStore';
 
 export const Settings: React.FC = () => {
-  const habits = useHabitStore((state) => state.habits);
-  const clearAllData = useHabitStore((state) => state.clearAllData);
+  const habits = useHabitStore((state: HabitStore) => state.habits);
+  const clearAllData = useHabitStore((state: HabitStore) => state.clearAllData);
   const [exportState, setExportState] = useState<'idle' | 'success' | 'error'>('idle');
 
   const handleExport = () => {
@@ -22,13 +22,13 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const userProfile = useHabitStore((state) => state.userProfile);
-  const updateUserProfile = useHabitStore((state) => state.updateUserProfile);
+  const userProfile = useHabitStore((state: HabitStore) => state.userProfile);
+  const updateUserProfile = useHabitStore((state: HabitStore) => state.updateUserProfile);
 
   // Convert habits to the format shown in the UI JSON preview
   const jsonPreviewStr = JSON.stringify({
     "user": userProfile.displayName,
-    "habits": habits.slice(0, 3).map(h => ({
+    "habits": habits.slice(0, 3).map((h: Habit) => ({
       id: h.id.substring(0, 8),
       name: h.title,
       streak: h.completedDates.length,
@@ -49,12 +49,12 @@ export const Settings: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
         {/* Profile Section */}
         <div className="md:col-span-12 lg:col-span-8">
-          <div className="bg-surface-container-lowest p-xl rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.04)] border border-outline-variant/20">
+          <div className="bg-slate-900/40 backdrop-blur-xl p-xl rounded-[24px] shadow-2xl border border-white/10">
             <div className="flex flex-col sm:flex-row sm:items-center gap-lg mb-xl">
               <div className="relative shrink-0 w-24 h-24">
                 <img 
                   alt="Profile Large" 
-                  className="w-full h-full rounded-2xl object-cover border-4 border-white shadow-xl" 
+                  className="w-full h-full rounded-2xl object-cover border-4 border-slate-800 shadow-2xl" 
                   src={userProfile.avatarUrl}
                 />
                 <button onClick={handleAvatarChange} className="absolute -bottom-2 -right-2 bg-primary text-on-primary p-xs rounded-lg shadow-lg hover:scale-110 transition-transform">
@@ -114,9 +114,40 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
+        {/* Desktop App Download Section */}
+        <div className="md:col-span-12 lg:col-span-12">
+          <div className="bg-blue-600/10 backdrop-blur-xl p-xl rounded-[24px] shadow-2xl border border-blue-500/20 flex flex-col md:flex-row items-center justify-between gap-lg">
+            <div className="flex items-center gap-lg">
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
+                <span className="material-symbols-outlined text-[32px]">desktop_windows</span>
+              </div>
+              <div>
+                <h3 className="font-display-lg text-headline-md text-on-surface">HabitBuilder for Desktop</h3>
+                <p className="font-body-md text-on-surface-variant max-w-md">Experience HabitBuilder with native performance, system notifications, and offline support.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-md">
+              <a 
+                href="#" 
+                className="flex items-center gap-sm bg-white text-slate-900 px-lg py-md rounded-xl font-bold hover:bg-slate-100 transition-all active:scale-95 shadow-lg"
+              >
+                <span className="material-symbols-outlined">download</span>
+                Download for Windows
+              </a>
+              <a 
+                href="#" 
+                className="flex items-center gap-sm bg-slate-800 text-white px-lg py-md rounded-xl font-bold hover:bg-slate-700 transition-all active:scale-95 shadow-lg border border-white/10"
+              >
+                <span className="material-symbols-outlined">apple</span>
+                Download for Mac
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* Data Export Section */}
         <div className="md:col-span-12 lg:col-span-12">
-          <div className="bg-surface-container-lowest p-xl rounded-xl shadow-[0px_20px_40px_rgba(92,36,179,0.04)] border border-outline-variant/20">
+          <div className="bg-slate-900/40 backdrop-blur-xl p-xl rounded-[24px] shadow-2xl border border-white/10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-lg mb-xl">
               <div>
                 <h3 className="font-display-lg text-headline-md text-on-surface">Data Export</h3>
@@ -130,14 +161,14 @@ export const Settings: React.FC = () => {
                 {exportState === 'success' ? 'Copied to Clipboard!' : 'Copy JSON to Clipboard'}
               </button>
             </div>
-            <div className="relative bg-inverse-surface rounded-xl p-lg overflow-hidden group">
+            <div className="relative bg-slate-950 rounded-xl p-lg overflow-hidden group">
               <div className="absolute top-4 right-4">
-                <span className="text-on-primary-container/30 text-label-sm font-mono uppercase tracking-widest">HABIT_DATA.JSON</span>
+                <span className="text-blue-400/30 text-label-sm font-mono uppercase tracking-widest">HABIT_DATA.JSON</span>
               </div>
-              <pre className="text-on-primary-container/80 font-mono text-[13px] leading-relaxed overflow-x-auto whitespace-pre-wrap">
+              <pre className="text-slate-300 font-mono text-[13px] leading-relaxed overflow-x-auto whitespace-pre-wrap">
                 {jsonPreviewStr}
               </pre>
-              <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-transparent pointer-events-none opacity-50"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent pointer-events-none opacity-50"></div>
             </div>
           </div>
         </div>

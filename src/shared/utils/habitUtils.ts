@@ -1,4 +1,4 @@
-import type { Habit } from '../store/useHabitStore';
+import type { Habit } from '../../backend/models/habitModels';
 
 export const DEFAULT_CATEGORY = 'General';
 

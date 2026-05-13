@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #3b82f6;
+  --color-secondary: #a855f7;
+
+  /* Premium Dark Theme Colors */
+  --color-background: #020617;
+  --color-surface: #0f172a;
+  --color-surface-container: #1e293b;
+  --color-surface-container-highest: #334155;
+  --color-on-surface: #f8fafc;
+  --color-on-surface-variant: #94a3b8;
+  --color-outline: #475569;
+  --color-outline-variant: #334155;
+  
+  --color-surface-container-low: #0f172a;
+  --color-surface-container-lowest: #020617;
+  --color-surface-container-high: #1e293b;
+  
+  --color-primary-container: #1e3a8a;
+  --color-on-primary-container: #dbeafe;
+  
+  --color-secondary-container: #581c87;
+  --color-on-secondary-container: #f3e8ff;
+
+  /* Redesign Fonts */
+  --font-display-lg: 'Sora', sans-serif;
+  --font-body-lg: 'Manrope', sans-serif;
+  --font-headline-lg: 'Sora', sans-serif;
+  --font-headline-md: 'Sora', sans-serif;
+  --font-body-md: 'Manrope', sans-serif;
+
+  /* Spacing */
+  --spacing-xl: 32px;
+  --spacing-base: 4px;
+  --spacing-lg: 24px;
+  --spacing-xxl: 48px;
+  --spacing-md: 16px;
+  --spacing-sm: 8px;
+}
+
+@layer utilities {
+  .glow-text {
+    text-shadow: 0 0 12px rgba(59, 130, 246, 0.5), 0 0 24px rgba(59, 130, 246, 0.2);
+  }
+  
+  .glow-text-purple {
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.5), 0 0 24px rgba(168, 85, 247, 0.2);
+  }
+  
+  .glass-dark {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px border rgba(255, 255, 255, 0.08);
+  }
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-container);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-container-highest);
+}
+

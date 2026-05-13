@@ -1,42 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getMonthKey, isInCurrentMonth, isInCurrentWeek, toISOLocal } from '../utils/dateUtils';
-import { normalizeCategory } from '../utils/habitUtils';
-import { ACTIVE_DAY_LOG_RANGE_DAYS, readArchiveMap, writeArchiveMap } from '../features/daylog/utils/dayLogArchive';
+import { getMonthKey, isDateEditable, toISOLocal } from '../../shared/utils/dateUtils';
+import { normalizeCategory } from '../../shared/utils/habitUtils';
+import { ACTIVE_DAY_LOG_RANGE_DAYS, readArchiveMap, writeArchiveMap } from '../../shared/utils/dayLogArchive';
+import { generateId } from '../../shared/utils/uuid';
 
-export interface Habit {
-  id: string;
-  title: string;
-  description?: string;
-  createdAt: Date;
-  isPremium: boolean;
-  completedDates: string[]; // ISO date strings
-  isArchived?: boolean; // Added for soft delete
-  category: string;
-}
+import { Habit, UserProfile, DayLogEntry, DayLogEvidence } from '../models/habitModels';
+export * from '../models/habitModels';
 
-export interface UserProfile {
-  displayName: string;
-  email: string;
-  avatarUrl: string;
-}
-export interface DayLogEntry {
-  id: string;
-  date: string;
-  createdAt: Date;
-  activity: string;
-  evidences?: DayLogEvidence[];
-}
-export interface DayLogEvidence {
-  id: string;
-  kind: 'finance_bill' | 'food_image' | 'other';
-  name: string;
-  mimeType: string;
-  dataUrl: string;
-  addedAt: Date;
-}
-
-interface HabitStore {
+export interface HabitStore {
   archivedDayLogs: Record<string, DayLogEntry[]>;
   habits: Habit[];
   userProfile: UserProfile;
@@ -66,7 +38,7 @@ const MAX_HABITS_PER_CATEGORY = 10;
 
 export const useHabitStore = create<HabitStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       habits: [],
       dayLogs: [],
       archivedDayLogs: {},
@@ -75,73 +47,70 @@ export const useHabitStore = create<HabitStore>()(
       isAddModalOpen: false,
       setAddModalOpen: (isOpen) => set({ isAddModalOpen: isOpen }),
       
-      addHabit: (habitData) => set((state) => {
+      addHabit: (habitData) => {
+        const { habits } = get();
         const category = normalizeCategory(habitData.category);
-        const categoryCount = state.habits.filter((habit) => !habit.isArchived && habit.category === category).length;
+        const categoryCount = habits.filter((habit) => !habit.isArchived && habit.category === category).length;
+        
+        console.log('[Store] Adding habit:', habitData.title, 'Category:', category, 'Count:', categoryCount);
+
         if (categoryCount >= MAX_HABITS_PER_CATEGORY) {
-          return state;
+          console.warn('[Store] Category limit reached for:', category);
+          return;
         }
 
-        return {
-          habits: [
-            ...state.habits,
-            {
-              ...habitData,
-              category,
-              id: crypto.randomUUID(),
-              createdAt: new Date(),
-              completedDates: [],
-              isArchived: false,
-            }
-          ]
+        const newHabit: Habit = {
+          ...habitData,
+          category,
+          id: generateId(),
+          createdAt: new Date(),
+          completedDates: [],
+          isArchived: false,
         };
-      }),
 
-      deleteHabit: (id) => set((state) => ({
+        set({ habits: [...habits, newHabit] });
+        console.log('[Store] Habit added successfully. New count:', get().habits.length);
+      },
+
+      deleteHabit: (id) => set((state: HabitStore) => ({
         habits: state.habits.filter((h) => h.id !== id)
       })),
 
-      archiveHabit: (id) => set((state) => ({
+      archiveHabit: (id) => set((state: HabitStore) => ({
         habits: state.habits.map((habit) => 
           habit.id === id ? { ...habit, isArchived: true } : habit
         )
       })),
 
-      toggleHabitCompletion: (id, targetDate) => set((state) => ({
+      toggleHabitCompletion: (id, targetDate) => set((state: HabitStore) => ({
         habits: state.habits.map((habit) => {
           if (habit.id !== id) return habit;
           
           const dateStr = targetDate || toISOLocal(new Date());
-          const monthKey = dateStr.slice(0, 7);
-          const monthLocked = state.monthValidation[monthKey] === true;
-          const editable = isInCurrentMonth(dateStr) && isInCurrentWeek(dateStr) && !monthLocked;
-          if (!editable) return habit;
+          if (!isDateEditable(dateStr, state.monthValidation)) return habit;
           const hasCompleted = habit.completedDates.includes(dateStr);
           
           return {
             ...habit,
             completedDates: hasCompleted
-              ? habit.completedDates.filter(date => date !== dateStr)
+              ? habit.completedDates.filter((date: string) => date !== dateStr)
               : [...habit.completedDates, dateStr]
           };
         })
       })),
 
-      updateUserProfile: (updates) => set((state) => ({
+      updateUserProfile: (updates) => set((state: HabitStore) => ({
         userProfile: { ...state.userProfile, ...updates }
       })),
-      addDayLog: (activity, targetDate, evidences = []) => set((state) => {
+      addDayLog: (activity, targetDate, evidences = []) => set((state: HabitStore) => {
         const dateStr = targetDate || toISOLocal(new Date());
-        const monthKey = dateStr.slice(0, 7);
-        const monthLocked = state.monthValidation[monthKey] === true;
-        const editable = isInCurrentMonth(dateStr) && isInCurrentWeek(dateStr) && !monthLocked;
-        if (!editable) return state;
+        if (!isDateEditable(dateStr, state.monthValidation)) return state;
         const trimmed = activity.trim();
         if (!trimmed && evidences.length === 0) return state;
         return {
           dayLogs: [
             {
-              id: crypto.randomUUID(),
+              id: generateId(),
               date: dateStr,
               createdAt: new Date(),
               activity: trimmed || 'Evidence-only log entry',
@@ -151,12 +120,12 @@ export const useHabitStore = create<HabitStore>()(
           ]
         };
       }),
-      validateCurrentMonthData: () => set((state) => {
+      validateCurrentMonthData: () => set((state: HabitStore) => {
         const key = getMonthKey(new Date());
         return { monthValidation: { ...state.monthValidation, [key]: true } };
       }),
 
-      archiveOldLogsToCloud: () => set((state) => {
+      archiveOldLogsToCloud: () => set((state: HabitStore) => {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - ACTIVE_DAY_LOG_RANGE_DAYS);
         const cutoffIso = toISOLocal(cutoff);
@@ -177,16 +146,15 @@ export const useHabitStore = create<HabitStore>()(
         };
       }),
       retrieveArchivedLogsForDate: (dateIso) => {
-        const state = useHabitStore.getState();
+        const state = get();
         const inMemory = state.archivedDayLogs[dateIso] ?? [];
         if (inMemory.length > 0) return inMemory;
         const parsed = readArchiveMap();
         return parsed[dateIso] ?? [];
       },
       canModifyDate: (dateIso) => {
-        const key = dateIso.slice(0, 7);
-        const state = useHabitStore.getState();
-        return isInCurrentMonth(dateIso) && isInCurrentWeek(dateIso) && state.monthValidation[key] !== true;
+        const state = get();
+        return isDateEditable(dateIso, state.monthValidation);
       },
 
       clearAllData: () => set({
@@ -201,7 +169,7 @@ export const useHabitStore = create<HabitStore>()(
     {
       name: 'habit-tracker-local-storage',
       // Custom deserialization to ensure createdAt is restored as a Date object
-      merge: (persistedState: any, currentState) => {
+      merge: (persistedState: any, currentState: HabitStore) => {
         if (!persistedState) return currentState;
 
         const safeHabits = Array.isArray(persistedState.habits)

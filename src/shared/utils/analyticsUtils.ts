@@ -1,4 +1,4 @@
-import { Habit } from '../store/useHabitStore';
+import { Habit } from '../../backend/models/habitModels';
 import { DayContext } from './dateUtils';
 
 /**
