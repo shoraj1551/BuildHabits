@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useHabitStore } from '../store/useHabitStore';
 import { format } from 'date-fns';
-import { toISOLocal, generateDateRange } from '../utils/dateUtils';
+import { toISOLocal, generateDateRange, getMonthKey, isLastDayOfMonth } from '../utils/dateUtils';
 import { getCompletionsPerDay, calculateConsistencyScore, getHabitCompletionCount } from '../utils/analyticsUtils';
-import { filterHabitsByCategory, getActiveHabits, getHabitCategories, getHabitCategorySummary } from '../utils/habitUtils';
+import { filterHabitsByCategory, getActiveHabits, getCategoryTheme, getHabitCategories, getHabitCategorySummary } from '../utils/habitUtils';
 import type { DayLogEvidence } from '../store/useHabitStore';
+import { motionTokens } from '../utils/motion';
+import { DayLogPanel } from '../features/daylog/components/DayLogPanel';
 
 interface DashboardProps {
   onOpenHabit: (habitId: string) => void;
@@ -17,6 +19,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
   const toggleHabitCompletion = useHabitStore((state) => state.toggleHabitCompletion);
   const dayLogs = useHabitStore((state) => state.dayLogs);
   const addDayLog = useHabitStore((state) => state.addDayLog);
+  const monthValidation = useHabitStore((state) => state.monthValidation);
+  const validateCurrentMonthData = useHabitStore((state) => state.validateCurrentMonthData);
+  const canModifyDate = useHabitStore((state) => state.canModifyDate);
+  const archiveOldLogsToCloud = useHabitStore((state) => state.archiveOldLogsToCloud);
+  const retrieveArchivedLogsForDate = useHabitStore((state) => state.retrieveArchivedLogsForDate);
 
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const activeHabits = useMemo(() => getActiveHabits(habits), [habits]);
@@ -24,6 +31,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
   const scopedHabits = useMemo(() => filterHabitsByCategory(activeHabits, selectedCategory), [activeHabits, selectedCategory]);
 
   const todayIso = toISOLocal(new Date());
+  const currentMonthKey = getMonthKey(new Date());
+  const isCurrentMonthValidated = monthValidation[currentMonthKey] === true;
+  const isMonthEnd = isLastDayOfMonth(new Date());
 
   // Generate last 7 days for the table and mini chart
   const last7Days = useMemo(() => generateDateRange(7), []);
@@ -42,10 +52,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
   }, [scopedHabits, last7Days]);
 
   const [activeMood, setActiveMood] = useState<string | null>(null);
-  const [dayActivity, setDayActivity] = useState('');
-  const [evidenceType, setEvidenceType] = useState<DayLogEvidence['kind']>('other');
-  const [pendingEvidence, setPendingEvidence] = useState<DayLogEvidence[]>([]);
   const categorySummary = useMemo(() => getHabitCategorySummary(activeHabits, todayIso), [activeHabits, todayIso]);
+  const selectedCategoryTheme = useMemo(() => getCategoryTheme(selectedCategory), [selectedCategory]);
 
   const moods = [
     { emoji: '😔', label: 'Sad' },
@@ -55,54 +63,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
     { emoji: '🔥', label: 'Elite' },
   ];
 
-  const handleSaveDayLog = () => {
-    addDayLog(dayActivity, todayIso, pendingEvidence);
-    setDayActivity('');
-    setPendingEvidence([]);
-  };
+  useEffect(() => {
+    archiveOldLogsToCloud();
+  }, [archiveOldLogsToCloud]);
 
-  const handleEvidenceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
-        if (!dataUrl) return;
-        setPendingEvidence((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            kind: evidenceType,
-            name: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            dataUrl,
-            addedAt: new Date()
-          }
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    e.target.value = '';
+  const handleSaveDayLog = (activity: string, evidences: DayLogEvidence[]) => {
+    if (!canModifyDate(todayIso)) return;
+    addDayLog(activity, todayIso, evidences);
   };
 
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.1 }
+      transition: { staggerChildren: 0.08 }
     }
   };
   
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+    show: { opacity: 1, y: 0, transition: motionTokens.spring.soft }
   };
 
   return (
-    <div className="px-lg md:px-xxl py-xl max-w-[1400px] mx-auto w-full pb-32">
+    <div className={`px-lg md:px-xxl py-xl max-w-[1400px] mx-auto w-full pb-32 bg-gradient-to-b ${selectedCategoryTheme.ambientClass}`}>
+      {isMonthEnd && !isCurrentMonthValidated && (
+        <div className="mb-lg rounded-xl border border-amber-300 bg-amber-50 px-md py-sm flex items-center justify-between gap-md">
+          <p className="text-sm text-amber-900 font-medium">Month-end validation required. Validate now; after validation, this month is locked from edits.</p>
+          <button onClick={validateCurrentMonthData} className="rounded-lg bg-amber-500 text-white px-md py-xs text-sm font-semibold hover:bg-amber-600">Validate Data</button>
+        </div>
+      )}
       
       {/* Welcome Section & Mood Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg mb-xxl">
@@ -113,8 +103,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/70 backdrop-blur-xl border border-white/40 p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col justify-between"
+          transition={{ delay: 0.15, duration: motionTokens.duration.medium, ease: motionTokens.ease.standard }}
+          className="bg-white/75 backdrop-blur-xl border border-white/50 p-lg rounded-[24px] shadow-[0px_24px_48px_rgba(15,23,42,0.08)] flex flex-col justify-between"
         >
           <p className="font-label-md text-label-md text-slate-500 mb-md">How are you feeling?</p>
           <div className="flex justify-between items-center px-sm">
@@ -146,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg mb-xxl"
       >
         {/* Daily Steps */}
-        <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-1 border border-white/60 flex flex-col items-center text-center">
+        <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_24px_50px_rgba(15,23,42,0.08)] md:col-span-1 border border-white/70 flex flex-col items-center text-center">
           <p className="w-full text-left font-label-md text-label-md text-on-surface-variant mb-lg">Consistency</p>
           <div className="relative flex items-center justify-center mb-md">
             <svg className="w-32 h-32 transform -rotate-90">
@@ -170,7 +160,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         </motion.div>
 
         {/* Active Habits stat */}
-        <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-1 border border-white/60 flex flex-col justify-between">
+        <motion.div variants={itemVariants} className="bg-white/65 backdrop-blur-lg p-lg rounded-[24px] shadow-[0px_18px_35px_rgba(15,23,42,0.06)] md:col-span-1 border border-white/60 flex flex-col justify-between">
           <div>
             <p className="font-label-md text-label-md text-on-surface-variant mb-lg">Active Habits</p>
             <span className="font-display-lg text-[48px] text-secondary leading-none">{scopedHabits.length}</span>
@@ -183,7 +173,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         </motion.div>
 
         {/* Habits Trend */}
-        <motion.div variants={itemVariants} className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-2 border border-white/60 flex flex-col">
+        <motion.div variants={itemVariants} className="bg-gradient-to-b from-white/85 to-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_24px_50px_rgba(15,23,42,0.08)] md:col-span-2 border border-white/70 flex flex-col">
           <div className="flex justify-between items-center mb-lg">
             <p className="font-label-md text-label-md text-on-surface-variant">Weekly Completion</p>
             <span className="font-label-sm text-label-sm text-primary font-bold">Total: {totalCompletionsThisWeek}</span>
@@ -214,7 +204,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] md:col-span-2 lg:col-span-4 border border-white/60 mb-xxl"
+          className="bg-white/70 backdrop-blur-xl p-lg rounded-[24px] shadow-[0px_22px_42px_rgba(15,23,42,0.07)] md:col-span-2 lg:col-span-4 border border-white/60 mb-xxl"
         >
           <div className="flex items-center justify-between mb-md">
             <p className="font-label-md text-on-surface">Category Performance Snapshot</p>
@@ -240,7 +230,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
       {/* Wellness Habits Section (Today's Quick Checklist) */}
       <section className="mb-xxl">
@@ -270,7 +260,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
               <button
                 key={item.category}
                 onClick={() => setSelectedCategory(item.category)}
-                className="text-left rounded-xl border border-white/40 bg-white/60 backdrop-blur-md p-md hover:border-primary/30 hover:bg-white/80 transition-colors shadow-sm"
+                className={`text-left rounded-xl border bg-white/60 backdrop-blur-md p-md hover:bg-white/80 transition-colors shadow-sm ${getCategoryTheme(item.category).badgeClass}`}
               >
                 <p className="text-sm font-semibold text-on-surface">{item.category}</p>
                 <p className="text-xs text-on-surface-variant mt-1">
@@ -287,25 +277,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
           )}
           {scopedHabits.map((habit) => {
             const isCompleted = habit.completedDates.includes(todayIso);
+            const theme = getCategoryTheme(habit.category);
+            const motionByCategory = theme.animation === 'pulse'
+              ? { scale: [1, 1.015, 1] }
+              : theme.animation === 'float'
+              ? { y: [0, -3, 0] }
+              : theme.animation === 'bounce'
+              ? { y: [0, -4, 0], scale: [1, 1.01, 1] }
+              : theme.animation === 'glow'
+              ? { boxShadow: ['0 10px 20px rgba(0,0,0,0.02)', '0 16px 28px rgba(251,191,36,0.18)', '0 10px 20px rgba(0,0,0,0.02)'] }
+              : {};
             return (
               <motion.div 
                 whileHover={{ y: -2 }}
+                animate={motionByCategory}
+                transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
                 key={habit.id} 
-                className={`p-md rounded-xl shadow-[0px_10px_20px_rgba(0,0,0,0.02)] border flex items-center justify-between group transition-all ${isCompleted ? 'bg-primary/5 border-primary/20 backdrop-blur-md' : 'bg-white/70 backdrop-blur-md border-white/60 hover:border-primary/20'}`}
+                className={`p-md rounded-xl shadow-[0px_10px_20px_rgba(0,0,0,0.02)] border flex items-center justify-between group transition-all bg-gradient-to-r ${theme.cardClass} ${isCompleted ? 'ring-1 ring-white/80 backdrop-blur-md' : 'backdrop-blur-md'}`}
               >
                 <div className="flex items-center gap-md">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isCompleted ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-tertiary/10 text-tertiary'}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isCompleted ? 'bg-white text-slate-800 shadow-lg shadow-white/40' : theme.badgeClass}`}>
                     <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      {isCompleted ? 'check_circle' : 'self_improvement'}
+                      {isCompleted ? 'check_circle' : theme.icon}
                     </span>
                   </div>
                   <div>
                     <h4 className={`font-label-md text-label-md transition-colors ${isCompleted ? 'text-primary font-bold' : 'text-on-surface group-hover:text-primary'}`}>{habit.title}</h4>
-                    <p className="text-label-sm text-on-surface-variant opacity-60 truncate max-w-[200px]">{habit.description || 'Daily Tracker'}</p>
+                    <p className="text-label-sm text-on-surface-variant opacity-70 truncate max-w-[200px]">{habit.description || 'Daily Tracker'}</p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${theme.badgeClass}`}>{theme.label}</span>
                   </div>
                 </div>
                 <button 
-                  onClick={() => toggleHabitCompletion(habit.id, todayIso)}
+                  onClick={() => canModifyDate(todayIso) && toggleHabitCompletion(habit.id, todayIso)}
                   className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isCompleted ? 'border-primary bg-primary text-on-primary' : 'border-primary/20 text-primary hover:bg-primary hover:text-on-primary'}`}
                 >
                   <span className="material-symbols-outlined">check</span>
@@ -322,73 +325,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
         </div>
       </section>
 
-      {/* Daily Activity Log */}
-      <section className="mb-xxl bg-white/70 backdrop-blur-xl rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-white/60 p-lg">
-        <div className="flex items-center justify-between mb-md">
-          <h3 className="font-headline-md text-on-surface">Log Your Day</h3>
-          <span className="text-xs text-on-surface-variant">{format(new Date(), 'MMMM d, yyyy')}</span>
-        </div>
-        <div className="space-y-sm">
-          <textarea
-            rows={3}
-            value={dayActivity}
-            onChange={(e) => setDayActivity(e.target.value)}
-            placeholder="What did you do today? Wins, blockers, routines..."
-            className="w-full rounded-xl border border-outline-variant/30 bg-surface px-md py-sm text-sm outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
-          />
-          <div className="flex justify-end">
-            <button
-              onClick={handleSaveDayLog}
-              disabled={!dayActivity.trim() && pendingEvidence.length === 0}
-              className="rounded-lg bg-primary text-on-primary px-lg py-sm font-semibold disabled:opacity-50"
-            >
-              Save Activity
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-sm items-end">
-            <label className="text-xs text-on-surface-variant md:col-span-1">
-              Evidence Type
-              <select
-                value={evidenceType}
-                onChange={(ev) => setEvidenceType(ev.target.value as DayLogEvidence['kind'])}
-                className="mt-1 w-full rounded-lg border border-outline-variant/30 px-sm py-xs bg-surface"
-              >
-                <option value="other">Other</option>
-                <option value="finance_bill">Finance Bill</option>
-                <option value="food_image">Food Image</option>
-              </select>
-            </label>
-            <label className="text-xs text-on-surface-variant md:col-span-2">
-              Upload Supporting Evidence
-              <input type="file" accept="image/*,.pdf" multiple onChange={handleEvidenceUpload} className="mt-1 block w-full text-xs" />
-            </label>
-          </div>
-          {pendingEvidence.length > 0 && (
-            <div className="rounded-lg border border-outline-variant/20 p-sm">
-              <p className="text-xs font-semibold mb-1">Pending Evidence ({pendingEvidence.length})</p>
-              <ul className="text-xs text-on-surface-variant space-y-1">
-                {pendingEvidence.map((item) => (
-                  <li key={item.id}>• {item.kind.replace('_', ' ')}: {item.name}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-        <div className="mt-lg space-y-sm">
-          {dayLogs.slice(0, 5).map((log) => (
-            <div key={log.id} className="rounded-lg border border-outline-variant/20 p-sm">
-              <p className="text-sm text-on-surface">{log.activity}</p>
-              <p className="text-[11px] text-on-surface-variant mt-1">{log.date}</p>
-              {(log.evidences?.length || 0) > 0 && (
-                <div className="mt-1 text-[11px] text-on-surface-variant">
-                  Evidence: {log.evidences?.map((evidence) => evidence.name).join(', ')}
-                </div>
-              )}
-            </div>
-          ))}
-          {dayLogs.length === 0 && <p className="text-sm text-on-surface-variant">No day logs yet. Add your first entry above.</p>}
-        </div>
-      </section>
+      <DayLogPanel
+        todayIso={todayIso}
+        canModifyToday={canModifyDate(todayIso)}
+        dayLogs={dayLogs}
+        archivedLogsLookup={retrieveArchivedLogsForDate}
+        onSaveLog={handleSaveDayLog}
+      />
 
       {/* 7-Day Data Table Container */}
       <section className="bg-white/70 backdrop-blur-xl rounded-[24px] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-white/60 overflow-hidden mb-xxl">
@@ -445,8 +388,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenHabit }) => {
                             </div>
                           ) : (
                             <div 
-                              onClick={() => toggleHabitCompletion(habit.id, day.iso)}
-                              className={`w-8 h-8 mx-auto rounded-full border-2 cursor-pointer transition-colors ${isToday ? 'border-primary text-primary hover:bg-primary hover:text-on-primary' : 'border-outline-variant/40 hover:border-primary/50'}`}
+                              onClick={() => canModifyDate(day.iso) && toggleHabitCompletion(habit.id, day.iso)}
+                              className={`w-8 h-8 mx-auto rounded-full border-2 transition-colors ${canModifyDate(day.iso) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'} ${isToday ? 'border-primary text-primary hover:bg-primary hover:text-on-primary' : 'border-outline-variant/40 hover:border-primary/50'}`}
                             >
                               {isToday && <span className="material-symbols-outlined text-sm flex items-center justify-center h-full">add</span>}
                             </div>

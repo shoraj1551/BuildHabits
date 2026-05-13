@@ -50,3 +50,30 @@ export const generateCurrentMonthRange = (): DayContext[] => {
     return { date: d, iso: toISOLocal(d) };
   });
 };
+
+export const getMonthKey = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+};
+
+export const isLastDayOfMonth = (date: Date = new Date()): boolean => {
+  return date.getDate() === new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+};
+
+export const isInCurrentWeek = (isoDate: string, now: Date = new Date()): boolean => {
+  const target = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return false;
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(now.getDate() - now.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return target >= start && target <= end;
+};
+
+export const isInCurrentMonth = (isoDate: string, now: Date = new Date()): boolean => {
+  const target = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return false;
+  return target.getFullYear() === now.getFullYear() && target.getMonth() === now.getMonth();
+};
